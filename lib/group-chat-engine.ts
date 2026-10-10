@@ -417,7 +417,9 @@ async function buildGroupChatPromptMessages(
         try {
             const [coreResults, results] = await Promise.all([
                 retrieveCoreMemoriesForPrompt(charId, memConfig),
-                retrieveMemoriesForPrompt(charId, wbActivationContext, memConfig),
+                // surface: "group" —— 群聊只注入"在这类场合可以提起"的条目：
+                // 私聊记忆不得自动出现在群聊可传播上下文里（scope 不含 group 的一律排除）。
+                retrieveMemoriesForPrompt(charId, wbActivationContext, memConfig, { surface: "group" }),
             ]);
             coreMemories = formatCoreMemories(coreResults);
             longTermMemories = formatLongTermMemories(results);

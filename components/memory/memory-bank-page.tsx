@@ -967,7 +967,8 @@ export function MemoryBankPage({
                                     <span className={`mem-origin-badge ${isManualMemoryEntry(entry) ? "is-manual" : ""}`}>
                                         {isManualMemoryEntry(entry) ? "MANUAL" : "AUTO"}
                                     </span>
-                                    {memoryStatusOf(entry) !== "active" && (
+                                    {/* 「未核验」是旧数据的默认状态，不是异常——只在需要处理的状态上打标 */}
+                                    {memoryStatusOf(entry) !== "active" && memoryStatusOf(entry) !== "unverified" && (
                                         <span className="mem-origin-badge">
                                             {MEMORY_STATUS_LABEL[memoryStatusOf(entry)] ?? memoryStatusOf(entry)}
                                         </span>

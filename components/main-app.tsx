@@ -254,6 +254,11 @@ export function MainApp() {
       setHydrated(true);
       startAutoBackupLoop();
       evaluateTierAdjustments();
+      // 记忆条目的一次性 schema 迁移（幂等、只加标记）。放在启动后 fire-and-forget：
+      // 不阻塞首屏，也不进聊天热路径。
+      void import("@/lib/memory-migrations")
+        .then(m => m.ensureMemorySchemaMigrated())
+        .catch(error => console.warn("[MainApp] memory schema migration failed:", error));
       // 筑境/子页返回主界面时跳过一次引导动画（sessionStorage 旗标，重启自动清除）
       const skipSplash = sessionStorage.getItem("float_skip_splash_once") === "1";
       if (skipSplash) sessionStorage.removeItem("float_skip_splash_once");

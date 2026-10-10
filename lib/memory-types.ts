@@ -99,16 +99,40 @@ export type MemorySourceKind = "user_said" | "character_said" | "imported" | "sy
  */
 export type MemoryContentKind = "experience" | "preference" | "plan" | "dream" | "hypothesis" | "reflection";
 
-/** 有效 / 已替代 / 待重算 / 已作废。缺省（旧数据）= active。 */
-export type MemoryStatus = "active" | "superseded" | "needs_review" | "invalid";
+/** 有效 / 未核验 / 已替代 / 待重算 / 已作废。缺省（旧数据）= active。 */
+export type MemoryStatus = "active" | "unverified" | "superseded" | "needs_review" | "invalid";
 
 /** 允许传播范围。private 的内容不进群聊可传播上下文。 */
 export type MemoryScope = "private" | "group";
 
+/** 注入场合：私聊（不限制）或群聊（只给允许在群里传播的条目）。 */
+export type MemorySurface = "private" | "group";
+
 export function memoryStatusOf(entry: Pick<MemoryEntry, "metadata">): MemoryStatus {
     const raw = entry.metadata?.status;
-    if (raw === "superseded" || raw === "needs_review" || raw === "invalid") return raw;
-    return raw === "active" ? "active" : "active";
+    if (raw === "unverified" || raw === "superseded" || raw === "needs_review" || raw === "invalid") return raw;
+    return "active";
+}
+
+/**
+ * 这条记忆的允许传播范围。缺省 = 仅私聊。
+ *
+ * 为什么缺省是最严的：旧数据没有来源记录，无法证明它是在群里公开说过的。
+ * "没记录"不能当成"可以随便传"——宁可不在群里自动提起，也不要泄露私聊。
+ */
+export function memoryScopeOf(entry: Pick<MemoryEntry, "metadata">): MemoryScope[] {
+    const raw = entry.metadata?.scope;
+    if (Array.isArray(raw)) {
+        const scopes = raw.filter((value): value is MemoryScope => value === "private" || value === "group");
+        if (scopes.length > 0) return scopes;
+    }
+    return ["private"];
+}
+
+/** 这条记忆能不能在指定场合被注入。私聊不限制；群聊只放行 scope 含 group 的。 */
+export function isMemoryVisibleOn(entry: Pick<MemoryEntry, "metadata">, surface: MemorySurface): boolean {
+    if (surface === "private") return true;
+    return memoryScopeOf(entry).includes("group");
 }
 
 export function memoryContentKindOf(entry: Pick<MemoryEntry, "metadata">): MemoryContentKind {
@@ -142,11 +166,16 @@ export function memoryBatchKeyOf(entry: Pick<MemoryEntry, "metadata">): string |
 }
 
 /**
- * 能否被事实召回：未归档 + 状态有效 + 事实层。
+ * 能否被事实召回：未归档 + 状态为有效或未核验 + 事实层。
  * reflection / trait_shift 是推断，不在此列（见 isFactEntry）。
+ *
+ * 「未核验」是迁移给旧条目打的标：它没有证据编号，但内容本身仍然成立，
+ * 所以照常参与召回，只是被明确标记出来（迁移不伪造证据）。
  */
 export function isRecallableEntry(entry: Pick<MemoryEntry, "kind" | "metadata">): boolean {
-    return !isArchivedEntry(entry) && memoryStatusOf(entry) === "active" && isFactEntry(entry);
+    if (isArchivedEntry(entry)) return false;
+    const status = memoryStatusOf(entry);
+    return (status === "active" || status === "unverified") && isFactEntry(entry);
 }
 
 /**
