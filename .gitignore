@@ -35,3 +35,7 @@ android/keystore.properties
 *.keystore
 !android/app/debug.keystore
 *.jks
+
+# `npx cap sync` copies the web build (out/) into these dirs — generated, never commit.
+android/app/src/main/assets/public/
+ios/App/App/public/

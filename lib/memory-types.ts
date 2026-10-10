@@ -20,6 +20,13 @@ export type MemoryEntry = {
     createdAt: string;
     updatedAt: string;
     sourceMessageIds?: string[];
+    /**
+     * 长期记忆 metadata 契约。全部可缺省——缺省就是旧数据的行为，无需迁移：
+     *   pinned   固定保留：容量清理豁免，且占用长期注入预算里的保留额度
+     *   manual   手工确认/手工新建：容量清理豁免，自动总结不得无依据覆盖
+     *   archived 已归档：容量清理的落点（只标记不删除，保留证据与恢复能力），召回时排除
+     *   generatedBy  写入来源（summarizer / consolidation / manual …）
+     */
     metadata?: Record<string, unknown>;
     /** 记忆分层；旧条目无此字段，按 "summary" 处理 */
     kind?: MemoryKind;
@@ -42,6 +49,35 @@ export function effectiveSalience(entry: Pick<MemoryEntry, "salience" | "importa
     return Math.min(10, Math.max(1, Math.round(raw)));
 }
 
+/** reflection / trait_shift 属于**推断层**：没有自己的原始证据，不能当事实用。 */
+export function isInferenceKind(entry: Pick<MemoryEntry, "kind">): boolean {
+    const kind = memoryKindOf(entry);
+    return kind === "reflection" || kind === "trait_shift";
+}
+
+/** 事实条目：episode / summary（含旧数据无 kind 的缺省 summary）。 */
+export function isFactEntry(entry: Pick<MemoryEntry, "kind">): boolean {
+    return !isInferenceKind(entry);
+}
+
+/** 固定保留：容量清理豁免，并在长期注入预算里占一份保留额度。 */
+export function isPinnedEntry(entry: Pick<MemoryEntry, "metadata">): boolean {
+    return entry.metadata?.pinned === true;
+}
+
+/** 已归档：容量清理只标记不删除，召回时排除。 */
+export function isArchivedEntry(entry: Pick<MemoryEntry, "metadata">): boolean {
+    return entry.metadata?.archived === true;
+}
+
+/** 受保护条目：核心记忆、固定保留、手工确认，一律排除在自动删除之外。 */
+export function isProtectedEntry(entry: Pick<MemoryEntry, "type" | "metadata">): boolean {
+    return entry.type === "core"
+        || entry.metadata?.pinned === true
+        || entry.metadata?.manual === true
+        || entry.metadata?.protected === true;
+}
+
 /**
  * 注入记账条目：长期记忆被注入提示词的累计次数与最近时间。
  *
@@ -58,9 +94,24 @@ export type MemorySurfacedRecord = {
 export type MemoryConfig = {
     autoSummarizeEnabled: boolean;          // whether auto-summarization runs after N events
     autoBuildCoreEnabled: boolean;          // whether core memories rebuild after long-term summarization
+    /**
+     * 空闲整理是否允许生成"反思"（跨多条记忆得出的新结论，kind=reflection）。默认关。
+     *
+     * 反思是**推断**而不是事实：它没有自己的原始证据，却会被召回和核心总结当成事实用，
+     * 于是"推测逐渐变成事实"。默认关闭后，只有用户在设置里显式打开才会跑；而且无论开关
+     * 如何，reflection / trait_shift 都不再进入事实召回与核心总结（见 memory-service、
+     * core-memory-builder）——它们是可恢复的旁证，不是事实来源。
+     */
+    autoReflectionEnabled: boolean;
     /** 空闲整理是否允许改写性格并注入下次聊天。默认关：反思可以有，性格覆盖层不自动长。 */
     autoPersonaDriftEnabled: boolean;
     vectorRecallEnabled: boolean;           // whether vector embedding recall is used for memory retrieval
+    /**
+     * 记忆检索日志：本地环形缓存，记录每轮召回了哪些记忆、分数怎么来的、谁没入选、
+     * 以及各后台任务执行时的开关状态。默认开；只写本机 kv、有限容量、不含 API 密钥。
+     * 可在记忆设置里关闭，或导出脱敏诊断文件。
+     */
+    memoryRecallLogEnabled: boolean;
     maxLongTermEntries: number;
     summarizationEventInterval: number;     // trigger summarization every N events
     coreSummarizationInterval: number;      // trigger core-memory rebuild every N new long-term memories
@@ -269,8 +320,10 @@ export const LEGACY_UNBOUNDED_MEMORY_BUDGET = 100000;
 export const DEFAULT_MEMORY_CONFIG: MemoryConfig = {
     autoSummarizeEnabled: true,
     autoBuildCoreEnabled: true,
+    autoReflectionEnabled: false,
     autoPersonaDriftEnabled: false,
     vectorRecallEnabled: true,
+    memoryRecallLogEnabled: true,
     maxLongTermEntries: 500,
     summarizationEventInterval: 80,
     coreSummarizationInterval: 5,
