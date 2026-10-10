@@ -3,7 +3,7 @@
 
 import type { MemoryEntry, MemoryConfig, MemorySurfacedRecord } from "./memory-types";
 import { DEFAULT_MEMORY_BUDGET, DEFAULT_MEMORY_CONFIG, LEGACY_UNBOUNDED_MEMORY_BUDGET, MEMORY_BUDGET_SCHEMA_VERSION } from "./memory-types";
-import { kvGet, kvSet, registerKvMigration, registerDynamicPrefix } from "./kv-db";
+import { kvGet, kvSet, kvRemove, registerKvMigration, registerDynamicPrefix } from "./kv-db";
 import { openIndexedDbAtLeast } from "./idb-open";
 
 // ── Long-term memory DB (unchanged from v1) ──
@@ -116,6 +116,17 @@ export function markMemorySurfaced(entryIds: string[], surfacedAt: string): void
             count: (previous?.count ?? 0) + 1,
             at: surfacedAt,
         }));
+    }
+}
+
+/**
+ * 清除一批条目的注入记账。条目被作废/归档/改写后，旧的记账不再有意义——
+ * 留着它只会让"新鲜度"这一维继续参考一条已经不作数的历史。
+ */
+export function clearMemorySurfacedRecords(entryIds: string[]): void {
+    if (typeof window === "undefined") return;
+    for (const entryId of entryIds) {
+        if (entryId) kvRemove(SURFACED_PREFIX + entryId);
     }
 }
 

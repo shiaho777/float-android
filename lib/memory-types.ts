@@ -21,11 +21,21 @@ export type MemoryEntry = {
     updatedAt: string;
     sourceMessageIds?: string[];
     /**
-     * 长期记忆 metadata 契约。全部可缺省——缺省就是旧数据的行为，无需迁移：
-     *   pinned   固定保留：容量清理豁免，且占用长期注入预算里的保留额度
-     *   manual   手工确认/手工新建：容量清理豁免，自动总结不得无依据覆盖
-     *   archived 已归档：容量清理的落点（只标记不删除，保留证据与恢复能力），召回时排除
-     *   generatedBy  写入来源（summarizer / consolidation / manual …）
+     * 事实与证据关联契约。全部可缺省——缺省就是旧数据的行为，无需迁移：
+     *   eventId      同一经历的稳定标识：一条 summary 与它派生的 episode 共享同一个
+     *                eventId/batchKey，因此**不能当成两份独立证据**。
+     *   batchKey     总结批次的幂等键（由时间窗推导）。重试时按键去重，不会重复入库。
+     *   sourceKind   谁讲的：user_said / character_said / imported / system
+     *   speakerId    讲述者的 characterId（用户讲述时缺省）
+     *   subjectIds   这条事实涉及谁（"用户去过日本"的主体是用户，不是听说的角色）
+     *   contentKind  经历 / 偏好 / 计划 / 梦境 / 假设 / 反思——梦与计划不得写成已发生
+     *   occurredAt   事件**发生**时间（可空：无明确依据就留空，不许推算补齐）
+     *   status       active / superseded / needs_review / invalid（缺省 = active）
+     *   supersedes   本条目替代了哪些旧条目
+     *   knownTo      知情者；scope 允许传播范围（private = 不进群聊上下文）
+     *   revision     修订版本，每次内容被改写 +1
+     *   derivedFrom  别名：由哪些条目派生（与顶层 links 同义，links 为准）
+     *   pinned / manual / archived / generatedBy  见 memory-types 顶部既有说明
      */
     metadata?: Record<string, unknown>;
     /** 记忆分层；旧条目无此字段，按 "summary" 处理 */
@@ -76,6 +86,67 @@ export function isProtectedEntry(entry: Pick<MemoryEntry, "type" | "metadata">):
         || entry.metadata?.pinned === true
         || entry.metadata?.manual === true
         || entry.metadata?.protected === true;
+}
+
+// ── 事实与证据关联（批次二） ──
+
+/** 谁讲的。用户转述的事不能变成角色的亲历。 */
+export type MemorySourceKind = "user_said" | "character_said" | "imported" | "system";
+
+/**
+ * 这条内容是什么性质。梦、计划、假设**不是**已发生的事——
+ * 单独标出来，提示词与核心总结都能据此拒绝把它们写成现实。
+ */
+export type MemoryContentKind = "experience" | "preference" | "plan" | "dream" | "hypothesis" | "reflection";
+
+/** 有效 / 已替代 / 待重算 / 已作废。缺省（旧数据）= active。 */
+export type MemoryStatus = "active" | "superseded" | "needs_review" | "invalid";
+
+/** 允许传播范围。private 的内容不进群聊可传播上下文。 */
+export type MemoryScope = "private" | "group";
+
+export function memoryStatusOf(entry: Pick<MemoryEntry, "metadata">): MemoryStatus {
+    const raw = entry.metadata?.status;
+    if (raw === "superseded" || raw === "needs_review" || raw === "invalid") return raw;
+    return raw === "active" ? "active" : "active";
+}
+
+export function memoryContentKindOf(entry: Pick<MemoryEntry, "metadata">): MemoryContentKind {
+    const raw = entry.metadata?.contentKind;
+    if (raw === "preference" || raw === "plan" || raw === "dream" || raw === "hypothesis" || raw === "reflection") return raw;
+    return raw === "experience" ? "experience" : "experience";
+}
+
+/**
+ * 事件发生时间。没有明确依据就退回写入时间——**不留空到把排序弄乱**，
+ * 但召回排序用这个值，导入的旧事不会因为"刚写入"被当成刚发生。
+ */
+export function memoryOccurredAtOf(entry: Pick<MemoryEntry, "metadata" | "createdAt">): string {
+    const occurredAt = entry.metadata?.occurredAt;
+    return typeof occurredAt === "string" && occurredAt.trim() ? occurredAt : entry.createdAt;
+}
+
+/**
+ * 同一经历的稳定标识。缺省退回条目自己的 id —— 于是没有 eventId 的旧条目
+ * 各自算一个独立事件，不会被错误地折叠到一起。
+ */
+export function memoryEventIdOf(entry: Pick<MemoryEntry, "id" | "metadata">): string {
+    const eventId = entry.metadata?.eventId;
+    return typeof eventId === "string" && eventId.trim() ? eventId : entry.id;
+}
+
+/** 总结批次的幂等键；同一批次的 summary 与它的 episode 共享它。 */
+export function memoryBatchKeyOf(entry: Pick<MemoryEntry, "metadata">): string | null {
+    const batchKey = entry.metadata?.batchKey;
+    return typeof batchKey === "string" && batchKey.trim() ? batchKey : null;
+}
+
+/**
+ * 能否被事实召回：未归档 + 状态有效 + 事实层。
+ * reflection / trait_shift 是推断，不在此列（见 isFactEntry）。
+ */
+export function isRecallableEntry(entry: Pick<MemoryEntry, "kind" | "metadata">): boolean {
+    return !isArchivedEntry(entry) && memoryStatusOf(entry) === "active" && isFactEntry(entry);
 }
 
 /**
@@ -168,6 +239,40 @@ export const DEFAULT_SUMMARIZATION_PROMPT = `你是一个记忆整理助手。�
 - 不要包含格式标记
 
 总结：`;
+
+/**
+ * v3 总结模板：在 v2 基础上要求每条 EPISODE 回指**支持它的事件编号**。
+ *
+ * 为什么要编号回指：v2 里 episode 与 summary 共享同一批 sourceMessageIds，
+ * 于是"整批消息无差别挂给所有条目"——一条 episode 说不出自己凭什么成立，
+ * 修正时也无法沿证据找到该连带失效的派生条目。有了编号，每条记忆才有自己的证据。
+ *
+ * Placeholders: {{char}}, {{earliest}}, {{latest}}, {{events}}
+ */
+export const DEFAULT_SUMMARIZATION_PROMPT_V3 = `你是一个记忆整理助手。根据以下事件记录，为{{char}}整理记忆。
+
+角色：{{char}}
+时间跨度：{{earliest}} 至 {{latest}}
+
+事件记录（每条前面是编号）：
+{{events}}
+
+严格按以下格式输出（不要输出任何其他内容）：
+
+SUMMARY:
+<一段简洁的事实性总结，第三人称，只写{{char}}亲身参与的事，以及用户直接告诉{{char}}或直接发生在{{char}}身上的事。保留名字、承诺、情感变化、关系里程碑、用户分享的生日/偏好/习惯。朋友圈只保留{{char}}自己发的、别人直接回应{{char}}的内容。不要把其他角色自己的生活写成{{char}}的经历。100-200字>
+
+EPISODES:
+EPISODE|<重要性1-10>|<一句话。必须能看出{{char}}本人参与；整句只有别人名字时不要写>|EVIDENCE:<支持这一条的事件编号，逗号分隔，至少一个>
+EPISODE|<重要性1-10>|<另一个事件>|EVIDENCE:<编号>
+（每行一条，最多8条，宁缺毋滥；只挑真正值得单独记住的时刻）
+
+写作约束：
+- 事件是"梦""计划""假设"时，必须写明是梦 / 计划 / 假设，不能写成已经发生的事。
+- 没有明确依据的日期、年龄、动机不要补写。
+- 人称约定：所有输出都必须用第三人称——用"用户"指代用户、用"{{char}}"指代角色；写"用户告诉了{{char}}自己的生日"而不是"我的生日"或"TA的生日"。
+
+重要性评分标准：日常琐事=1-3，有意义的互动=4-7，关系里程碑/强烈情绪事件=8-10`;
 
 /**
  * 旧版 v2 默认模板。用户若从未改过总结提示词，库存的就是这一段。
@@ -330,7 +435,7 @@ export const DEFAULT_MEMORY_CONFIG: MemoryConfig = {
     shortTermTokenBudget: DEFAULT_MEMORY_BUDGET.shortTermTokenBudget,
     coreMemoryTokenBudget: DEFAULT_MEMORY_BUDGET.coreMemoryTokenBudget,
     longTermTokenBudget: DEFAULT_MEMORY_BUDGET.longTermTokenBudget,
-    summarizationPrompt: DEFAULT_SUMMARIZATION_PROMPT_V2,
+    summarizationPrompt: DEFAULT_SUMMARIZATION_PROMPT_V3,
     coreMemoryPrompt: DEFAULT_CORE_MEMORY_PROMPT,
     vnSummaryPrompt: "",
     shortTermAllowedSources: {

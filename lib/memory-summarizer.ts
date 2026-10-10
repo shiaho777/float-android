@@ -2,8 +2,15 @@
 // Auto-summarization engine: summarizes short-term events into long-term memories.
 // Trigger: every N events (configurable). Short-term events are NOT deleted after summarization.
 
-import type { MemoryEntry } from "./memory-types";
-import { DEFAULT_SUMMARIZATION_PROMPT, DEFAULT_SUMMARIZATION_PROMPT_V2, LEGACY_SUMMARIZATION_PROMPT_V2, isProtectedEntry } from "./memory-types";
+import type { MemoryEntry, MemoryContentKind, MemorySourceKind } from "./memory-types";
+import {
+    DEFAULT_SUMMARIZATION_PROMPT,
+    DEFAULT_SUMMARIZATION_PROMPT_V2,
+    DEFAULT_SUMMARIZATION_PROMPT_V3,
+    LEGACY_SUMMARIZATION_PROMPT_V2,
+    isProtectedEntry,
+    memoryBatchKeyOf,
+} from "./memory-types";
 import { loadCharacters } from "./character-storage";
 import { buildMemoryRoster, isForeignMemoryText, retainPersonalMemoryProse } from "./group-memory-scope";
 import {
@@ -38,25 +45,52 @@ const PERSONAL_MEMORY_ATTRIBUTION_RULE = `归属约束（必须遵守，覆盖�
 - 不要把「某人做了某事」改写成{{char}}做的。素材里{{char}}没参与的事，就当没发生过。
 - 用户告诉{{char}}的事实可以保留，但要写成「用户告诉{{char}}……」，不能写成{{char}}自己的经历。`;
 
-export type ParsedSummarizationOutput = {
-    summary: string;
-    episodes: { salience: number; content: string }[];
+export type ParsedEpisode = {
+    salience: number;
+    content: string;
+    /** 支持这一条的事件编号（1 起，对应传入事件记录的顺序）；空 = 模型没给证据 */
+    evidenceIdx: number[];
 };
 
-/** 解析 v2 总结输出：SUMMARY: 段 + EPISODE|<1-10>|<内容> 行。
- *  旧格式（纯文本摘要）/解析失败 → 整段当 summary，episodes 为空。 */
+export type ParsedSummarizationOutput = {
+    summary: string;
+    episodes: ParsedEpisode[];
+    /** 输出里是否出现结构化标记（SUMMARY: / EPISODE| / EPISODES:）。 */
+    structured: boolean;
+};
+
+/**
+ * 解析总结输出：SUMMARY: 段 + EPISODE|<1-10>|<内容>[|EVIDENCE:<编号,…>] 行。
+ *
+ * v3 起每条 EPISODE 要带 `EVIDENCE:<事件编号>`，好让每条记忆**定位到自己的证据**，
+ * 而不是把整批消息无差别挂给所有条目。仍然兼容 v2 的无 EVIDENCE 行。
+ *
+ * `structured` 交给调用方判断"这次输出到底按格式来了没有"：用内置结构化模板时，
+ * 一段没有任何标记的输出很可能是拒答 / 报错 / 跑题，不该被存成一条有效记忆。
+ */
 export function parseSummarizationOutput(raw: string): ParsedSummarizationOutput {
     const text = raw.trim();
-    const episodes: { salience: number; content: string }[] = [];
-    const episodeRe = /^\s*(?:[-*]\s*)?EPISODE\s*[|｜]\s*(\d{1,2})\s*[|｜]\s*(.+)\s*$/gim;
+    const episodes: ParsedEpisode[] = [];
+    // 内容用惰性匹配、EVIDENCE 组可选并锚在行尾：既吃 v3 的带证据行，也吃 v2 的裸行。
+    const episodeRe = /^\s*(?:[-*]\s*)?EPISODE\s*[|｜]\s*(\d{1,2})\s*[|｜]\s*(.+?)\s*(?:[|｜]\s*EVIDENCE\s*[:：]?\s*([\d\s,，、]+))?\s*$/gim;
     let match: RegExpExecArray | null;
     let firstEpisodeStart = -1;
     while ((match = episodeRe.exec(text)) !== null) {
         if (firstEpisodeStart === -1) firstEpisodeStart = match.index;
         const salience = Math.min(10, Math.max(1, Number(match[1]) || 1));
         const content = match[2].trim();
-        if (content) episodes.push({ salience, content });
+        const evidenceIdx = Array.from(new Set(
+            (match[3] ?? "")
+                .split(/[\s,，、]+/)
+                .map(part => Number(part))
+                .filter(value => Number.isFinite(value) && value > 0),
+        ));
+        if (content) episodes.push({ salience, content, evidenceIdx });
     }
+
+    const hasSummaryMarker = /SUMMARY\s*[:：]/i.test(text);
+    const hasEpisodesHeader = /^\s*EPISODES?\s*[:：]?\s*$/im.test(text);
+    const structured = hasSummaryMarker || hasEpisodesHeader || episodes.length > 0;
 
     // SUMMARY: 段 = "SUMMARY:" 到 "EPISODES:" 或第一条 EPISODE 行之间
     const summaryMatch = /SUMMARY\s*[:：]/i.exec(text);
@@ -72,11 +106,38 @@ export function parseSummarizationOutput(raw: string): ParsedSummarizationOutput
         summary = tail.slice(0, cutAt).trim();
     }
     if (!summary) {
-        // 无结构标记：剥掉 EPISODE 行后整体当摘要
+        // 无结构标记：剥掉 EPISODE 行后整体当摘要（用户自定义纯文本提示词走这条）
         summary = text.replace(episodeRe, "").replace(/EPISODES\s*[:：]?\s*$/im, "").trim();
     }
     if (!summary) summary = text;
-    return { summary, episodes };
+    return { summary, episodes, structured };
+}
+
+/**
+ * 总结批次的幂等键：同一时间窗 + 同样条数 = 同一批。
+ *
+ * "写入记忆"与"推进处理游标"分处两个存储、没法放进一个事务；如果写完记忆、还没
+ * 推游标就崩了，下一次会拿同一个窗口重跑。有了这个键，重跑发现同批已入库就只推游标，
+ * 不会重复创建同一批记忆。
+ */
+function buildBatchKey(earliest: string, latest: string, count: number): string {
+    const raw = `${earliest}|${latest}|${count}`;
+    let hash = 5381;
+    for (let i = 0; i < raw.length; i++) hash = ((hash << 5) + hash + raw.charCodeAt(i)) | 0;
+    return `batch_${(hash >>> 0).toString(36)}`;
+}
+
+/**
+ * 内容性质判定的兜底网。提示词已经要求模型把梦/计划/假设写明，这里再按词面兜一层：
+ * 梦、计划、假设**不是**已发生的事，标出来之后，核心总结与召回都能据此区别对待。
+ * 顺序有意为之——先判梦，再判假设/玩笑，然后才是计划与偏好。
+ */
+export function classifyContentKind(text: string): MemoryContentKind {
+    if (/(梦见|做梦|梦到|梦里|梦见了)/.test(text)) return "dream";
+    if (/(假设|假如|要是|如果|开玩笑|玩笑话|随口一说|随口说)/.test(text)) return "hypothesis";
+    if (/(打算|计划|准备要|准备去|想去|想要去|约定好|约好|安排在|下次要|明天要|下周要)/.test(text)) return "plan";
+    if (/(喜欢|讨厌|爱吃|不爱吃|偏好|习惯|口味|最喜欢的)/.test(text)) return "preference";
+    return "experience";
 }
 
 /**
@@ -150,20 +211,43 @@ export async function runSummarizationPipeline(
         return { success: false, error: allEntries.length === 0 ? "没有可总结的事件" : "事件不足 4 条" };
     }
 
-    const formatted = formatTimelineForSummarization(allEntries);
+    // 编号化：v3 模板让模型用编号回指"这条 episode 由哪几条事件支撑"，
+    // 每条记忆因此有自己的证据，而不是整批消息无差别挂给所有条目。
+    const formatted = formatTimelineForSummarization(allEntries, { indexed: true });
     if (!formatted) return { success: false, error: "格式化事件数据失败" };
 
     const { eventsText, earliest, latest } = formatted;
 
-    // Use user-editable prompt template from config, with placeholder substitution.
-    // 存量用户若还存着 v1 默认模板文本，自动升级到 v2（episode 抽取格式）。
-    let promptTemplate = config.summarizationPrompt?.trim() || DEFAULT_SUMMARIZATION_PROMPT_V2;
+    // 幂等：同一窗口重跑时先看这批是不是已经写过。写完记忆、还没推进游标就崩了的
+    // 情况会重跑同一个窗口——不查这一下就会重复创建同一批记忆。
+    const batchKey = buildBatchKey(earliest, latest, allEntries.length);
+    if (!options?.force) {
+        const existingEntries = await loadMemoryEntries(characterId);
+        if (existingEntries.some(entry => memoryBatchKeyOf(entry) === batchKey)) {
+            setLastSummarizedTimestamp(characterId, latest);
+            resetEventCounter(characterId);
+            logMemoryTask({
+                task: "summarize",
+                characterId,
+                switches: memorySwitchSnapshot(),
+                action: "skip",
+                outcome: `批次 ${batchKey} 已入库（重试），跳过重复写入`,
+            });
+            return { success: true };
+        }
+    }
+
+    // 存量用户若还存着 v1/v2 默认模板文本，自动升级到 v3（episode 带证据编号）。
+    let promptTemplate = config.summarizationPrompt?.trim() || DEFAULT_SUMMARIZATION_PROMPT_V3;
     if (
         promptTemplate === DEFAULT_SUMMARIZATION_PROMPT.trim()
         || promptTemplate === LEGACY_SUMMARIZATION_PROMPT_V2.trim()
+        || promptTemplate === DEFAULT_SUMMARIZATION_PROMPT_V2.trim()
     ) {
-        promptTemplate = DEFAULT_SUMMARIZATION_PROMPT_V2;
+        promptTemplate = DEFAULT_SUMMARIZATION_PROMPT_V3;
     }
+    // 只有内置的结构化模板才强制要求结构；用户自定义提示词保持宽松回退（他那份本身就是纯文本）。
+    const requireStructure = promptTemplate === DEFAULT_SUMMARIZATION_PROMPT_V3.trim();
     const summaryPrompt = `${promptTemplate
         .replace(/\{\{char\}\}/gi, characterName)
         .replace(/\{\{earliest\}\}/gi, earliest)
@@ -190,6 +274,21 @@ ${PERSONAL_MEMORY_ATTRIBUTION_RULE.replace(/\{\{char\}\}/gi, characterName)}`;
 
     const rawOutput = result.content;
     const parsed = parseSummarizationOutput(rawOutput);
+
+    // 解析失败守卫：输出里没有任何结构化标记，极可能是模型的拒答 / 报错 / 跑题。
+    // 把这种整段异常回复直接存成"有效记忆"，正是"推测逐渐变成事实"的上游。
+    if (requireStructure && !parsed.structured) {
+        if (!options?.force) resetEventCounter(characterId);
+        logMemoryTask({
+            task: "summarize",
+            characterId,
+            switches: memorySwitchSnapshot(),
+            action: "skip",
+            outcome: "输出不含 SUMMARY/EPISODE 标记，已拒绝入库（未写入任何记忆）",
+        });
+        return { success: false, error: "总结输出不是你要求的格式，已拒绝入库（避免把异常回复存成记忆）" };
+    }
+
     const roster = buildMemoryRoster(loadCharacters(), characterId, characterName);
     const summary = retainPersonalMemoryProse(parsed.summary, roster.selfNames, roster.otherNames);
     const episodes = parsed.episodes
@@ -235,6 +334,32 @@ ${PERSONAL_MEMORY_ATTRIBUTION_RULE.replace(/\{\{char\}\}/gi, characterName)}`;
         allEntries.map(entry => entry.id).filter(Boolean),
     ));
 
+    // 谁讲的：素材里谁的发言占多数。用户转述的事不能变成角色的亲历。
+    const authorCounts = new Map<string, number>();
+    for (const entry of allEntries) {
+        const key = entry.authorType ?? "unknown";
+        authorCounts.set(key, (authorCounts.get(key) ?? 0) + 1);
+    }
+    const dominantAuthor = [...authorCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+    const batchSourceKind: MemorySourceKind =
+        dominantAuthor === "user" ? "user_said" : dominantAuthor === "character" ? "character_said" : "system";
+
+    // 证据解析：把模型给的编号映射回具体条目。编号越界 / 没给编号都**不伪造**证据。
+    const evidenceEntriesFor = (idx: number[]) =>
+        idx.map(i => allEntries[i - 1]).filter((entry): entry is (typeof allEntries)[number] => Boolean(entry));
+    const evidenceIdsFor = (idx: number[]) =>
+        Array.from(new Set(evidenceEntriesFor(idx).map(entry => entry.id).filter(Boolean)));
+    const occurredAtFor = (idx: number[]): string => {
+        const times = evidenceEntriesFor(idx).map(entry => entry.timestamp).filter(Boolean).sort();
+        return times[0] ?? latest;
+    };
+    const sourceKindFor = (idx: number[]): MemorySourceKind => {
+        const evidence = evidenceEntriesFor(idx);
+        if (evidence.length === 0) return batchSourceKind;
+        const userCount = evidence.filter(entry => entry.authorType === "user").length;
+        return userCount * 2 >= evidence.length ? "user_said" : "character_said";
+    };
+
     // Save as long-term memory (kind=summary，旧格式输出也走这里，episodes 为空即等价旧行为)
     const now = new Date().toISOString();
     const summaryId = `mem_lt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -254,13 +379,23 @@ ${PERSONAL_MEMORY_ATTRIBUTION_RULE.replace(/\{\{char\}\}/gi, characterName)}`;
             summarizedEvents: allEntries.length,
             timeSpan: `${earliest} ~ ${latest}`,
             sourceSessionIds,
+            // 证据关联：summary 与它派生的 episode 共享同一个 eventId/batchKey ——
+            // 它们是"同一次经历的两面"，因此**不能**被当成两份独立证据。
+            batchKey,
+            eventId: batchKey,
+            sourceKind: batchSourceKind,
+            contentKind: "experience",
+            occurredAt: latest,
+            status: "active",
+            revision: 1,
         },
     };
     await saveMemoryEntry(longTermEntry);
 
-    // Episode 条目：每条一句话事件 + LLM 重要性评分，links 指回 summary。
+    // Episode 条目：每条一句话事件 + LLM 重要性评分 + **它自己的证据编号**。
     // 上限 8 条（prompt 约束），解析失败的行已被 parser 丢掉。
     for (const [index, episode] of episodes.entries()) {
+        const evidenceIds = evidenceIdsFor(episode.evidenceIdx);
         let episodeEmbedding: number[] | undefined;
         if (embeddingApiConfig && resolveEmbeddingModel(embeddingApiConfig)) {
             try {
@@ -281,8 +416,22 @@ ${PERSONAL_MEMORY_ATTRIBUTION_RULE.replace(/\{\{char\}\}/gi, characterName)}`;
             links: [summaryId],
             createdAt: now,
             updatedAt: now,
-            sourceMessageIds: allSourceMessageIds.length ? allSourceMessageIds : undefined,
-            metadata: { timeSpan: `${earliest} ~ ${latest}` },
+            // 证据精确到条目：只在解析到编号时才挂靠，**不做整批挂靠**。
+            sourceMessageIds: evidenceIds.length ? evidenceIds : undefined,
+            metadata: {
+                timeSpan: `${earliest} ~ ${latest}`,
+                batchKey,
+                // 与 summary 同一个 eventId：同一次经历的两面，不是两份证据。
+                eventId: batchKey,
+                episodeIndex: index + 1,
+                sourceKind: sourceKindFor(episode.evidenceIdx),
+                contentKind: classifyContentKind(episode.content),
+                occurredAt: evidenceIds.length ? occurredAtFor(episode.evidenceIdx) : latest,
+                status: "active",
+                revision: 1,
+                // 模型没给编号：不伪造证据，标出来待核（内容仍成立，但不作为独立证据）。
+                ...(evidenceIds.length ? {} : { evidenceUnresolved: true }),
+            },
         });
     }
 

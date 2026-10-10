@@ -8,7 +8,16 @@ import { Toggle } from "@/components/ui/form";
 import { loadCharacters } from "@/lib/character-storage";
 import type { Character } from "@/lib/character-types";
 import type { MemoryEntry, MemoryConfig, MemoryKind } from "@/lib/memory-types";
-import { DEFAULT_CORE_MEMORY_PROMPT, DEFAULT_SUMMARIZATION_PROMPT, effectiveSalience, memoryKindOf } from "@/lib/memory-types";
+import {
+    DEFAULT_CORE_MEMORY_PROMPT,
+    DEFAULT_SUMMARIZATION_PROMPT,
+    DEFAULT_SUMMARIZATION_PROMPT_V2,
+    DEFAULT_SUMMARIZATION_PROMPT_V3,
+    LEGACY_SUMMARIZATION_PROMPT_V2,
+    effectiveSalience,
+    memoryKindOf,
+    memoryStatusOf,
+} from "@/lib/memory-types";
 import {
     loadMemoryConfig,
     saveMemoryConfig,
@@ -28,6 +37,7 @@ import { runCoreMemoryPipeline } from "@/lib/core-memory-builder";
 import { buildMemoryIndex, resolveEvidenceChain, buildChainTree, diagnoseMemoryHealth, repairDanglingLinks, type MemoryChainNode, type MemoryHealthReport } from "@/lib/memory-graph";
 import { loadPersonaState, revertTraitShift, type PersonaState } from "@/lib/persona-state";
 import { runConsolidation } from "@/lib/memory-consolidation";
+import { invalidateMemoryEntry, restoreMemoryEntry } from "@/lib/memory-correction";
 import { clearMemoryRecallLog, exportMemoryRecallLog, readMemoryRecallLog } from "@/lib/memory-recall-log";
 import { resolveAuxiliaryApiConfig, resolveUserIdentity } from "@/lib/settings-storage";
 import { generateEmbedding, resolveEmbeddingModel } from "@/lib/memory-embedding";
@@ -51,7 +61,26 @@ const MEMORY_TOKEN_BUDGET_STEP: Record<MemoryBudgetKey, number> = {
     longTermTokenBudget: 100,
 };
 const MANUAL_MEMORY_CONTENT_LIMIT = 3000;
-// 详情页时间线最多解析渲染的条数：全量历史可能有几万条，
+
+/**
+ * 总结提示词的"默认"判定：v1 / v2 / v3 的出厂文本都算默认。
+ * 否则老用户库存的是 v2 出厂文本，界面会把"从没改过"显示成"已修改"，
+ * 点"恢复默认"又写回 v1——与实际运行的 v3 张冠李戴。
+ */
+const isStoredSummarizationPromptDefault = (value?: string): boolean =>
+    !value
+    || value === DEFAULT_SUMMARIZATION_PROMPT_V3
+    || value === DEFAULT_SUMMARIZATION_PROMPT_V2
+    || value === DEFAULT_SUMMARIZATION_PROMPT
+    || value === LEGACY_SUMMARIZATION_PROMPT_V2;
+
+/** 非有效状态的展示名（作废 / 待重算 / 已替代）。 */
+const MEMORY_STATUS_LABEL: Record<string, string> = {
+    superseded: "已替代",
+    needs_review: "待重算",
+    invalid: "已作废",
+    unverified: "未核验",
+};// 详情页时间线最多解析渲染的条数：全量历史可能有几万条，
 // 一次性解析+渲染会把 iOS Safari 的单页内存顶爆（灰屏杀页）
 const MEMORY_TIMELINE_ENTRY_CAP = 2000;
 
@@ -528,8 +557,8 @@ export function MemoryBankPage({
     };
 
     const handleResetPrompt = () => {
-        setEditingPrompt(DEFAULT_SUMMARIZATION_PROMPT);
-        const next = { ...config, summarizationPrompt: DEFAULT_SUMMARIZATION_PROMPT };
+        setEditingPrompt(DEFAULT_SUMMARIZATION_PROMPT_V3);
+        const next = { ...config, summarizationPrompt: DEFAULT_SUMMARIZATION_PROMPT_V3 };
         setConfig(next);
         saveMemoryConfig(next);
         showNotice("已恢复默认提示词");
@@ -740,6 +769,39 @@ export function MemoryBankPage({
         }
     };
 
+    /**
+     * 作废一条记忆。派生条目（总结 / 反思 / 性格变化）会沿证据链一起失效并停止召回——
+     * 只改一条却让派生副本继续生效，正是"修正正文后错误总结仍然生效"的来源。
+     */
+    const handleInvalidateEntry = async (entryId: string) => {
+        if (!selectedCharId) return;
+        try {
+            const outcome = await invalidateMemoryEntry(selectedCharId, entryId, { reason: "记忆页手工作废" });
+            if (!outcome.changed.length) {
+                showNotice(outcome.skipped[0]?.reason ?? "没有条目被改动");
+                return;
+            }
+            const derived = outcome.changed.length - 1;
+            showNotice(derived > 0
+                ? `已作废，并连带失效 ${derived} 条派生记忆（已停止召回，可恢复）`
+                : "已作废（无派生条目）");
+            await loadDetailData(selectedCharId);
+        } catch (error) {
+            showNotice("作废失败：" + String(error));
+        }
+    };
+
+    const handleRestoreEntry = async (entryId: string) => {
+        if (!selectedCharId) return;
+        try {
+            const outcome = await restoreMemoryEntry(selectedCharId, entryId);
+            showNotice(outcome.changed.length ? "已恢复为有效" : (outcome.skipped[0]?.reason ?? "没有条目被改动"));
+            await loadDetailData(selectedCharId);
+        } catch (error) {
+            showNotice("恢复失败：" + String(error));
+        }
+    };
+
     const renderChainNode = (node: MemoryChainNode, depth: number) => (
         <div key={node.entry.id} className="mem-chain-node" style={{ marginLeft: depth * 16 }}>
             <div className="mem-chain-node-head">
@@ -905,6 +967,11 @@ export function MemoryBankPage({
                                     <span className={`mem-origin-badge ${isManualMemoryEntry(entry) ? "is-manual" : ""}`}>
                                         {isManualMemoryEntry(entry) ? "MANUAL" : "AUTO"}
                                     </span>
+                                    {memoryStatusOf(entry) !== "active" && (
+                                        <span className="mem-origin-badge">
+                                            {MEMORY_STATUS_LABEL[memoryStatusOf(entry)] ?? memoryStatusOf(entry)}
+                                        </span>
+                                    )}
                                     <div className="mem-entry-menu-wrap">
                                         <button
                                             className="mem-entry-menu-btn"
@@ -922,6 +989,27 @@ export function MemoryBankPage({
                                                     <Edit3 size={13} />
                                                     <span>编辑</span>
                                                 </button>
+                                                {memoryStatusOf(entry) === "active" ? (
+                                                    <button
+                                                        onClick={() => {
+                                                            setEntryMenuId(null);
+                                                            void handleInvalidateEntry(entry.id);
+                                                        }}
+                                                    >
+                                                        <AlertCircle size={13} />
+                                                        <span>标记为无效</span>
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => {
+                                                            setEntryMenuId(null);
+                                                            void handleRestoreEntry(entry.id);
+                                                        }}
+                                                    >
+                                                        <Check size={13} />
+                                                        <span>恢复为有效</span>
+                                                    </button>
+                                                )}
                                                 <button
                                                     className="is-danger"
                                                     onClick={() => {
@@ -1184,10 +1272,15 @@ export function MemoryBankPage({
 
     // ── Settings View ──
     if (view === "settings") {
-        const currentPrompt = editingPrompt ?? config.summarizationPrompt ?? DEFAULT_SUMMARIZATION_PROMPT;
+        const currentPrompt = editingPrompt
+            ?? (isStoredSummarizationPromptDefault(config.summarizationPrompt)
+                ? DEFAULT_SUMMARIZATION_PROMPT_V3
+                : config.summarizationPrompt!);
         const currentCorePrompt = editingCorePrompt ?? config.coreMemoryPrompt ?? DEFAULT_CORE_MEMORY_PROMPT;
-        const isModified = currentPrompt !== (config.summarizationPrompt ?? DEFAULT_SUMMARIZATION_PROMPT);
-        const isDefault = (config.summarizationPrompt ?? DEFAULT_SUMMARIZATION_PROMPT) === DEFAULT_SUMMARIZATION_PROMPT;
+        // 只有"编辑器里的内容与已存的不一致"才算改过。原写法拿显示值去比，
+        // 存量默认提示词会被误判成"已修改"。
+        const isModified = editingPrompt !== null && editingPrompt !== config.summarizationPrompt;
+        const isDefault = isStoredSummarizationPromptDefault(config.summarizationPrompt);
         const isCoreModified = currentCorePrompt !== (config.coreMemoryPrompt ?? DEFAULT_CORE_MEMORY_PROMPT);
         const isCoreDefault = (config.coreMemoryPrompt ?? DEFAULT_CORE_MEMORY_PROMPT) === DEFAULT_CORE_MEMORY_PROMPT;
 

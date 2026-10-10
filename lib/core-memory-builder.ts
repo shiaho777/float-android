@@ -1,5 +1,5 @@
 import type { MemoryEntry } from "./memory-types";
-import { DEFAULT_CORE_MEMORY_PROMPT, LEGACY_CORE_MEMORY_PROMPT, isArchivedEntry, isFactEntry } from "./memory-types";
+import { DEFAULT_CORE_MEMORY_PROMPT, LEGACY_CORE_MEMORY_PROMPT, isArchivedEntry, isFactEntry, memoryStatusOf } from "./memory-types";
 import {
     loadMemoryConfig,
     loadMemoryEntriesByType,
@@ -39,6 +39,36 @@ function formatCoreTimelineForSummarization(
         latest: entries[entries.length - 1].timestamp,
         count: entries.length,
     };
+}
+
+/**
+ * 从核心正文里抽出明确的关系与约定，存成结构化索引。
+ *
+ * 为什么需要：正文有 80-180 字的上限，写不下"关系是什么、约定了什么"这类关键事实；
+ * 索引不受字数限制，召回与排查时能直接看到关系状态，不必再去正文里猜。
+ * 只认明确词面，不做推测——没写就是没有。
+ */
+export function buildRelationshipIndex(text: string): string[] {
+    const patterns: [RegExp, string][] = [
+        [/(结婚|已婚|配偶|丈夫|妻子|老公|老婆)/, "婚姻关系"],
+        [/订婚/, "订婚"],
+        [/(分手|分开|结束关系)/, "已分手"],
+        [/复合/, "复合"],
+        [/离婚/, "离婚"],
+        [/(恋人|男朋友|女朋友|对象|在一起)/, "恋爱关系"],
+        [/(同居|一起住|搬到?一起)/, "同居"],
+        [/(见家长|见父母)/, "见家长"],
+        [/(姐弟|兄妹)/, "姐弟"],
+        [/(网友|线上认识|网上认识)/, "网友"],
+        [/(一起养|共同养|养了)/, "共同养宠物"],
+        [/(约定|约好|答应|承诺)/, "重要约定"],
+        [/(朋友|好友)/, "朋友"],
+    ];
+    const labels: string[] = [];
+    for (const [pattern, label] of patterns) {
+        if (pattern.test(text)) labels.push(label);
+    }
+    return Array.from(new Set(labels));
 }
 
 export async function runCoreMemoryPipeline(
@@ -138,22 +168,83 @@ export async function runCoreMemoryPipeline(
     }
     const sourceSessionIds = Array.from(new Set(entries.flatMap(entry => entry.sourceSessionIds)));
 
-    const coreEntry: MemoryEntry = {
-        id: `mem_core_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-        characterId,
-        sourceApp: dominantSource,
-        type: "core",
-        content: summary,
-        importance: 0.95,
-        createdAt: now,
-        updatedAt: now,
-        metadata: {
-            summarizedLongTermEntries: entries.length,
-            timeSpan: `${earliest} ~ ${latest}`,
-            sourceSessionIds,
-        },
+    // ── 合并更新，而不是不断追加 ──
+    // 旧写法每跑一次就 new 一条核心记忆：互相冲突的段落越堆越多，召回按时间排序又会把
+    // 最新那条顶上去，"核心记忆"于是变成一摞自相矛盾的总结。现在只保留一条活跃版本并改写它。
+    const activeCore = (await loadMemoryEntriesByType(characterId, "core"))
+        .filter(entry => !isArchivedEntry(entry) && memoryStatusOf(entry) === "active");
+    // 手工确认的核心记忆受保护：自动总结不得无依据覆盖。
+    const manualCore = activeCore.find(entry => entry.metadata?.manual === true);
+    if (manualCore && !options?.force) {
+        logMemoryTask({
+            task: "core-summary",
+            characterId,
+            switches: memorySwitchSnapshot(),
+            action: "skip",
+            outcome: "已存在手工确认的核心记忆，自动总结跳过（不覆盖）",
+        });
+        return { success: false, error: "已有手工确认的核心记忆，自动总结已跳过" };
+    }
+    const editableCore = activeCore
+        .filter(entry => entry.metadata?.manual !== true)
+        .sort((a, b) => String(b.updatedAt ?? b.createdAt).localeCompare(String(a.updatedAt ?? a.createdAt)))[0];
+
+    // 关系索引：取自**当前**正文——关系会变（在一起 / 分手），不能留着上一版的标签。
+    const relationshipIndex = buildRelationshipIndex(summary);
+    // 经历索引：**累积**（本轮的 + 上几轮留下的），否则每次重建都会把更早的经历索引冲掉。
+    // 有上限：索引是拿来定位经历的，不是无限台账。
+    const previousExperienceIds = Array.isArray(editableCore?.metadata?.experienceEntryIds)
+        ? (editableCore!.metadata!.experienceEntryIds as unknown[]).map(String)
+        : [];
+    const experienceEntryIds = Array.from(new Set([...previousExperienceIds, ...entries.map(entry => entry.id)]))
+        .slice(-200);
+
+    const sharedMetadata = {
+        summarizedLongTermEntries: entries.length,
+        timeSpan: `${earliest} ~ ${latest}`,
+        sourceSessionIds,
+        relationshipIndex,
+        experienceEntryIds,
+        occurredAt: latest,
+        status: "active",
+        // 人物卡的基础设定与"和用户相处的记忆"分开：卡只用于核对，不写进相处记忆。
+        cardFactsSeparate: true,
     };
-    await saveMemoryEntry(coreEntry);
+
+    let coreEntryId: string;
+    if (editableCore) {
+        const revision = (typeof editableCore.metadata?.revision === "number" ? editableCore.metadata.revision : 1) + 1;
+        const revisions = Array.isArray(editableCore.metadata?.revisions) ? editableCore.metadata.revisions : [];
+        coreEntryId = editableCore.id;
+        await saveMemoryEntry({
+            ...editableCore,
+            content: summary,
+            updatedAt: now,
+            metadata: {
+                ...editableCore.metadata,
+                ...sharedMetadata,
+                revision,
+                // 旧版本留档（有上限）：回退与审计有据可查，但不会无限膨胀。
+                revisions: [
+                    ...revisions,
+                    { at: editableCore.updatedAt ?? editableCore.createdAt, content: editableCore.content },
+                ].slice(-3),
+            },
+        });
+    } else {
+        coreEntryId = `mem_core_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        await saveMemoryEntry({
+            id: coreEntryId,
+            characterId,
+            sourceApp: dominantSource,
+            type: "core",
+            content: summary,
+            importance: 0.95,
+            createdAt: now,
+            updatedAt: now,
+            metadata: { ...sharedMetadata, revision: 1 },
+        });
+    }
 
     setLastCoreSummarizedTimestamp(characterId, latest);
     if (!options?.force) {
@@ -164,9 +255,9 @@ export async function runCoreMemoryPipeline(
         task: "core-summary",
         characterId,
         switches: memorySwitchSnapshot(),
-        action: "create",
-        entryId: coreEntry.id,
-        outcome: `${entries.length} 条事实层长期记忆 → 1 条核心记忆`,
+        action: editableCore ? "merge" : "create",
+        entryId: coreEntryId,
+        outcome: `${entries.length} 条事实层长期记忆 → ${editableCore ? "合并更新" : "新建"} 1 条核心记忆，关系索引 ${relationshipIndex.length} 项`,
     });
 
     return { success: true, rebuiltCount: 1 };

@@ -1489,20 +1489,28 @@ export function prepareGroupShortTermContext(
 /**
  * Format timeline entries for the summarization pipeline.
  * Returns the formatted event text and time range.
+ *
+ * indexed=true 时给每条事件加一个 1 起的编号（`[1] …`），供 v3 总结模板让模型
+ * 用编号回指"这条 episode 是哪几条事件支撑的"——每条记忆因此有自己的证据，
+ * 而不是整批消息无差别挂给所有条目。
  */
 export function formatTimelineForSummarization(
     entries: NativeTimelineEntry[],
-    options?: { timeAware?: boolean },
+    options?: { timeAware?: boolean; indexed?: boolean },
 ): { eventsText: string; earliest: string; latest: string; count: number } | null {
     if (entries.length === 0) return null;
 
     const timeAware = resolvePromptTimeAware(options?.timeAware);
+    const indexed = options?.indexed === true;
     const eventsText = entries
-        .map(e => `- ${timeAware ? e.content : formatStoredPromptEventContent(e.content, {
-            label: "事件",
-            timestamp: e.timestamp,
-            timeAware,
-        })}`)
+        .map((e, index) => {
+            const body = timeAware ? e.content : formatStoredPromptEventContent(e.content, {
+                label: "事件",
+                timestamp: e.timestamp,
+                timeAware,
+            });
+            return indexed ? `[${index + 1}] ${body}` : `- ${body}`;
+        })
         .join("\n");
     return {
         eventsText,

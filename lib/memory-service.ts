@@ -4,10 +4,12 @@
 import type { MemoryConfig, MemoryEntry } from "./memory-types";
 import {
     effectiveSalience,
-    isArchivedEntry,
-    isFactEntry,
     isPinnedEntry,
+    isRecallableEntry,
     memoryKindOf,
+    memoryOccurredAtOf,
+    memoryStatusOf,
+    isArchivedEntry,
     type MemorySurfacedRecord,
 } from "./memory-types";
 import { loadMemoryEntriesByType, loadMemorySurfacedRecords, markMemorySurfaced } from "./memory-storage";
@@ -69,11 +71,11 @@ export async function retrieveMemoriesForPrompt(
     const { focus, background, embeddingText } = resolveQuery(query);
     if (!embeddingText) return [];
 
-    // 事实层候选：归档条目与推断层（reflection / trait_shift）都不参与事实召回。
+    // 事实层候选：归档、已作废/待重算、以及推断层（reflection / trait_shift）都不参与事实召回。
     // 归档 = 容量清理的落点（只标记不删除，可恢复）；推断层没有自己的原始证据，
     // 让它们与事实混排正是"推测逐渐变成事实"的入口。
     const longTermEntries = (await loadMemoryEntriesByType(characterId, "long_term"))
-        .filter(entry => !isArchivedEntry(entry) && isFactEntry(entry));
+        .filter(entry => isRecallableEntry(entry));
     if (longTermEntries.length === 0) return [];
 
     const budget = config.longTermTokenBudget;
@@ -123,7 +125,8 @@ export async function retrieveMemoriesForPrompt(
         const score = parts.recency + parts.salience + parts.relevance + parts.novelty;
         return { entry, score, parts };
     });
-    scored.sort((a, b) => b.score - a.score || a.entry.createdAt.localeCompare(b.entry.createdAt));
+    scored.sort((a, b) => b.score - a.score
+        || memoryOccurredAtOf(a.entry).localeCompare(memoryOccurredAtOf(b.entry)));
 
     // 固定保留（metadata.pinned）走独立预算车道：关系事实不该被一堆新条目挤出上下文。
     const reservedBudget = Math.round(budget * RESERVED_BUDGET_RATIO);
@@ -134,7 +137,7 @@ export async function retrieveMemoriesForPrompt(
     const pickedGeneral = fillByBudget(generalItems, Math.max(0, budget - pinnedTokens));
     const selected = [...pickedPinned, ...pickedGeneral];
     // 输出按时间正序：读起来仍是一段有先后的经历，而不是按分数乱排的清单
-    selected.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    selected.sort((a, b) => memoryOccurredAtOf(a).localeCompare(memoryOccurredAtOf(b)));
 
     if (config.memoryRecallLogEnabled !== false) {
         logRecall({
@@ -209,7 +212,9 @@ function resolveQuery(query: string | MemoryRetrievalQuery): {
 }
 
 function recencyScoreOf(entry: MemoryEntry, nowMs: number): number {
-    const ageDays = Math.max(0, (nowMs - new Date(entry.createdAt).getTime()) / 86400000);
+    // 用**发生时间**而不是写入时间：导入或重建索引后，一件旧事不该因为是刚写入的
+    // 就被当成"刚发生"，把真正的近期经历挤掉。
+    const ageDays = Math.max(0, (nowMs - new Date(memoryOccurredAtOf(entry)).getTime()) / 86400000);
     return Math.exp(-ageDays / 7);
 }
 
@@ -231,22 +236,22 @@ function noveltyScoreOf(record: MemorySurfacedRecord | undefined, nowMs: number)
 
 /**
  * 取核心记忆。核心按关系事实稳定注入、不参与轮换，也不记账。
- * 同样排除归档条目——归档是容量清理的落点，不该继续注入。
+ * 归档条目与已作废/待重算条目都不再注入。
  */
 export async function retrieveCoreMemoriesForPrompt(
     characterId: string,
     config: MemoryConfig,
 ): Promise<MemoryEntry[]> {
     const coreEntries = (await loadMemoryEntriesByType(characterId, "core"))
-        .filter(entry => !isArchivedEntry(entry));
+        .filter(entry => !isArchivedEntry(entry) && memoryStatusOf(entry) === "active");
     if (coreEntries.length === 0) return [];
 
     const sorted = [...coreEntries].sort((a, b) => {
         const aActive = a.metadata?.active ? 1 : 0;
         const bActive = b.metadata?.active ? 1 : 0;
         if (aActive !== bActive) return bActive - aActive;
-        const aDate = String(a.metadata?.eventDate ?? a.updatedAt ?? a.createdAt);
-        const bDate = String(b.metadata?.eventDate ?? b.updatedAt ?? b.createdAt);
+        const aDate = String(a.metadata?.occurredAt ?? a.metadata?.eventDate ?? a.updatedAt ?? a.createdAt);
+        const bDate = String(b.metadata?.occurredAt ?? b.metadata?.eventDate ?? b.updatedAt ?? b.createdAt);
         return bDate.localeCompare(aDate);
     });
 
