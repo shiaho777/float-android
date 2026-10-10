@@ -17,7 +17,7 @@
 // 兼容：全部走 saveMemoryEntry，字段可选；无任何 LLM 绑定时安静跳过。
 
 import type { MemoryEntry } from "./memory-types";
-import { memoryKindOf, effectiveSalience, isFactEntry, memoryEventIdOf, memoryStatusOf } from "./memory-types";
+import { memoryKindOf, effectiveSalience, isRecallableEntry, memoryEventIdOf } from "./memory-types";
 import {
     loadMemoryEntries,
     saveMemoryEntry,
@@ -81,7 +81,7 @@ export async function maybeRunConsolidation(
     // 事实层才是原料：已有反思不能当新反思的证据（否则推断自我繁殖）；
     // 已作废 / 待重算的条目同样不作数，否则"被推翻的事"会继续被拿去推理。
     const fresh = (last ? entries.filter(e => e.createdAt > last) : entries)
-        .filter(e => e.type === "long_term" && isFactEntry(e) && memoryStatusOf(e) === "active");
+        .filter(e => e.type === "long_term" && isRecallableEntry(e));
     // 新积累量太少（<4 条或累计重要性 <12）不值得一次反思调用
     const salienceSum = fresh.reduce((acc, e) => acc + effectiveSalience(e), 0);
     if (fresh.length < 4 || salienceSum < 12) {
@@ -245,12 +245,12 @@ export async function runConsolidation(
     }
 
     const all = (await loadMemoryEntries(characterId)).filter(e => e.type === "long_term");
-    // 原料与证据都取事实层且状态有效：已有反思不能当新反思的证据（否则推断会自我繁殖），
+    // 原料与证据都取"可召回的事实层"：已有反思不能当新反思的证据（否则推断会自我繁殖），
     // 已作废 / 待重算的条目也不能当证据（否则被推翻的事会继续支撑新推断）。
-    const factEntries = all.filter(e => isFactEntry(e) && memoryStatusOf(e) === "active");
+    const factEntries = all.filter(e => isRecallableEntry(e));
     const last = getLastConsolidatedTimestamp(characterId);
     const candidates = (freshEntries ?? (last ? factEntries.filter(e => e.createdAt > last) : factEntries))
-        .filter(e => e.type === "long_term" && isFactEntry(e) && memoryStatusOf(e) === "active")
+        .filter(e => e.type === "long_term" && isRecallableEntry(e))
         .sort((a, b) => effectiveSalience(b) - effectiveSalience(a))
         .slice(0, REFLECTION_CANDIDATE_LIMIT);
 

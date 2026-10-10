@@ -1,5 +1,5 @@
 import type { MemoryEntry } from "./memory-types";
-import { DEFAULT_CORE_MEMORY_PROMPT, LEGACY_CORE_MEMORY_PROMPT, isArchivedEntry, isFactEntry, memoryStatusOf } from "./memory-types";
+import { DEFAULT_CORE_MEMORY_PROMPT, LEGACY_CORE_MEMORY_PROMPT, isRecallableEntry } from "./memory-types";
 import {
     loadMemoryConfig,
     loadMemoryEntriesByType,
@@ -77,10 +77,11 @@ export async function runCoreMemoryPipeline(
     options?: { force?: boolean },
 ): Promise<{ success: boolean; error?: string; rebuiltCount?: number }> {
     const config = loadMemoryConfig();
-    // 核心记忆只能由**事实层**支撑：reflection / trait_shift 是推断（没有自己的原始证据），
-    // 把它们总结进核心正是"推测逐渐变成事实"的直接通道。归档条目同样排除。
+    // 核心记忆只能由**可召回的事实层**支撑：reflection / trait_shift 是推断（没有自己的
+    // 原始证据），把它们总结进核心正是"推测逐渐变成事实"的直接通道。归档、已作废、
+    // 待重算的条目同样排除；「未核验」的旧条目照常参与（它只是没证据编号，内容仍成立）。
     const allLongTermEntries = (await loadMemoryEntriesByType(characterId, "long_term"))
-        .filter(entry => isFactEntry(entry) && !isArchivedEntry(entry));
+        .filter(entry => isRecallableEntry(entry));
 
     if (allLongTermEntries.length === 0) {
         return { success: false, error: "没有可用于总结核心记忆的长期记忆" };
@@ -171,8 +172,9 @@ export async function runCoreMemoryPipeline(
     // ── 合并更新，而不是不断追加 ──
     // 旧写法每跑一次就 new 一条核心记忆：互相冲突的段落越堆越多，召回按时间排序又会把
     // 最新那条顶上去，"核心记忆"于是变成一摞自相矛盾的总结。现在只保留一条活跃版本并改写它。
+    // isRecallableEntry 已含"未归档"，这里不用再判一次
     const activeCore = (await loadMemoryEntriesByType(characterId, "core"))
-        .filter(entry => !isArchivedEntry(entry) && memoryStatusOf(entry) === "active");
+        .filter(entry => isRecallableEntry(entry));
     // 手工确认的核心记忆受保护：自动总结不得无依据覆盖。
     const manualCore = activeCore.find(entry => entry.metadata?.manual === true);
     if (manualCore && !options?.force) {
@@ -207,6 +209,8 @@ export async function runCoreMemoryPipeline(
         experienceEntryIds,
         occurredAt: latest,
         status: "active",
+        // 核心记忆是"你和用户的关系"——只在私聊里成立，不进群聊可传播上下文。
+        scope: ["private"],
         // 人物卡的基础设定与"和用户相处的记忆"分开：卡只用于核对，不写进相处记忆。
         cardFactsSeparate: true,
     };

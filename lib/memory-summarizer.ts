@@ -2,7 +2,7 @@
 // Auto-summarization engine: summarizes short-term events into long-term memories.
 // Trigger: every N events (configurable). Short-term events are NOT deleted after summarization.
 
-import type { MemoryEntry, MemoryContentKind, MemorySourceKind } from "./memory-types";
+import type { MemoryEntry, MemoryContentKind, MemorySourceKind, MemoryScope } from "./memory-types";
 import {
     DEFAULT_SUMMARIZATION_PROMPT,
     DEFAULT_SUMMARIZATION_PROMPT_V2,
@@ -360,6 +360,16 @@ ${PERSONAL_MEMORY_ATTRIBUTION_RULE.replace(/\{\{char\}\}/gi, characterName)}`;
         return userCount * 2 >= evidence.length ? "user_said" : "character_said";
     };
 
+    // 传播范围：只有"在群里公开说过"的内容才允许进群聊可传播上下文。
+    // 私聊里说的话（含混合批次里无法定位来源的条目）一律按私聊处理——隐私优先。
+    const batchScope: MemoryScope[] = allEntries.some(entry => entry.sourceDetail === "group")
+        ? ["private", "group"]
+        : ["private"];
+    const scopeForEvidence = (idx: number[]): MemoryScope[] =>
+        evidenceEntriesFor(idx).some(entry => entry.sourceDetail === "group")
+            ? ["private", "group"]
+            : ["private"];
+
     // Save as long-term memory (kind=summary，旧格式输出也走这里，episodes 为空即等价旧行为)
     const now = new Date().toISOString();
     const summaryId = `mem_lt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -388,6 +398,7 @@ ${PERSONAL_MEMORY_ATTRIBUTION_RULE.replace(/\{\{char\}\}/gi, characterName)}`;
             occurredAt: latest,
             status: "active",
             revision: 1,
+            scope: batchScope,
         },
     };
     await saveMemoryEntry(longTermEntry);
@@ -429,6 +440,8 @@ ${PERSONAL_MEMORY_ATTRIBUTION_RULE.replace(/\{\{char\}\}/gi, characterName)}`;
                 occurredAt: evidenceIds.length ? occurredAtFor(episode.evidenceIdx) : latest,
                 status: "active",
                 revision: 1,
+                // 证据定位不到来源时按最严处理：只允许私聊，不在群里自动提起。
+                scope: evidenceIds.length ? scopeForEvidence(episode.evidenceIdx) : ["private"],
                 // 模型没给编号：不伪造证据，标出来待核（内容仍成立，但不作为独立证据）。
                 ...(evidenceIds.length ? {} : { evidenceUnresolved: true }),
             },

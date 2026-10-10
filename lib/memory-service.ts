@@ -4,12 +4,12 @@
 import type { MemoryConfig, MemoryEntry } from "./memory-types";
 import {
     effectiveSalience,
+    isMemoryVisibleOn,
     isPinnedEntry,
     isRecallableEntry,
     memoryKindOf,
     memoryOccurredAtOf,
-    memoryStatusOf,
-    isArchivedEntry,
+    type MemorySurface,
     type MemorySurfacedRecord,
 } from "./memory-types";
 import { loadMemoryEntriesByType, loadMemorySurfacedRecords, markMemorySurfaced } from "./memory-storage";
@@ -66,16 +66,25 @@ export async function retrieveMemoriesForPrompt(
     characterId: string,
     query: string | MemoryRetrievalQuery,
     config: MemoryConfig,
-    options?: { trackSurfacing?: boolean },
+    options?: {
+        trackSurfacing?: boolean;
+        /**
+         * 注入场合。群聊（"group"）只放行 scope 含 group 的条目——私聊记忆不得自动
+         * 出现在群聊可传播上下文里。缺省 "private"：私聊不限制传播范围。
+         */
+        surface?: MemorySurface;
+    },
 ): Promise<MemoryEntry[]> {
+    const surface: MemorySurface = options?.surface ?? "private";
     const { focus, background, embeddingText } = resolveQuery(query);
     if (!embeddingText) return [];
 
     // 事实层候选：归档、已作废/待重算、以及推断层（reflection / trait_shift）都不参与事实召回。
     // 归档 = 容量清理的落点（只标记不删除，可恢复）；推断层没有自己的原始证据，
     // 让它们与事实混排正是"推测逐渐变成事实"的入口。
+    // 群聊场合再叠一层传播范围：只在群里公开说过的事才允许进群聊上下文。
     const longTermEntries = (await loadMemoryEntriesByType(characterId, "long_term"))
-        .filter(entry => isRecallableEntry(entry));
+        .filter(entry => isRecallableEntry(entry) && isMemoryVisibleOn(entry, surface));
     if (longTermEntries.length === 0) return [];
 
     const budget = config.longTermTokenBudget;
@@ -237,13 +246,17 @@ function noveltyScoreOf(record: MemorySurfacedRecord | undefined, nowMs: number)
 /**
  * 取核心记忆。核心按关系事实稳定注入、不参与轮换，也不记账。
  * 归档条目与已作废/待重算条目都不再注入。
+ *
+ * 注意：核心记忆**不**受 surface 过滤。它是"你是谁、我们是什么关系"的身份框架，
+ * 不是一条可以被拿出来讲的经历——群聊里把关系框架抽掉，角色会当场变成陌生人。
+ * 真正需要按场合隔离的是长期记忆（可被提起的经历），那一路已经过滤了。
  */
 export async function retrieveCoreMemoriesForPrompt(
     characterId: string,
     config: MemoryConfig,
 ): Promise<MemoryEntry[]> {
     const coreEntries = (await loadMemoryEntriesByType(characterId, "core"))
-        .filter(entry => !isArchivedEntry(entry) && memoryStatusOf(entry) === "active");
+        .filter(entry => isRecallableEntry(entry));
     if (coreEntries.length === 0) return [];
 
     const sorted = [...coreEntries].sort((a, b) => {
