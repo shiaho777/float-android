@@ -1,5 +1,5 @@
 import type { MemoryEntry } from "./memory-types";
-import { DEFAULT_CORE_MEMORY_PROMPT, LEGACY_CORE_MEMORY_PROMPT } from "./memory-types";
+import { DEFAULT_CORE_MEMORY_PROMPT, LEGACY_CORE_MEMORY_PROMPT, isArchivedEntry, isFactEntry } from "./memory-types";
 import {
     loadMemoryConfig,
     loadMemoryEntriesByType,
@@ -17,6 +17,7 @@ import {
     formatCharacterCardFacts,
     stripUngroundedStartAges,
 } from "./core-memory-facts";
+import { logMemoryTask, memorySwitchSnapshot } from "./memory-recall-log";
 
 const coreBuildingSet = new Set<string>();
 
@@ -46,7 +47,10 @@ export async function runCoreMemoryPipeline(
     options?: { force?: boolean },
 ): Promise<{ success: boolean; error?: string; rebuiltCount?: number }> {
     const config = loadMemoryConfig();
-    const allLongTermEntries = await loadMemoryEntriesByType(characterId, "long_term");
+    // 核心记忆只能由**事实层**支撑：reflection / trait_shift 是推断（没有自己的原始证据），
+    // 把它们总结进核心正是"推测逐渐变成事实"的直接通道。归档条目同样排除。
+    const allLongTermEntries = (await loadMemoryEntriesByType(characterId, "long_term"))
+        .filter(entry => isFactEntry(entry) && !isArchivedEntry(entry));
 
     if (allLongTermEntries.length === 0) {
         return { success: false, error: "没有可用于总结核心记忆的长期记忆" };
@@ -155,6 +159,15 @@ export async function runCoreMemoryPipeline(
     if (!options?.force) {
         resetCoreMemoryCounter(characterId);
     }
+
+    logMemoryTask({
+        task: "core-summary",
+        characterId,
+        switches: memorySwitchSnapshot(),
+        action: "create",
+        entryId: coreEntry.id,
+        outcome: `${entries.length} 条事实层长期记忆 → 1 条核心记忆`,
+    });
 
     return { success: true, rebuiltCount: 1 };
 }

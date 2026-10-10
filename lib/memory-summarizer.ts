@@ -3,14 +3,13 @@
 // Trigger: every N events (configurable). Short-term events are NOT deleted after summarization.
 
 import type { MemoryEntry } from "./memory-types";
-import { DEFAULT_SUMMARIZATION_PROMPT, DEFAULT_SUMMARIZATION_PROMPT_V2, LEGACY_SUMMARIZATION_PROMPT_V2 } from "./memory-types";
+import { DEFAULT_SUMMARIZATION_PROMPT, DEFAULT_SUMMARIZATION_PROMPT_V2, LEGACY_SUMMARIZATION_PROMPT_V2, isProtectedEntry } from "./memory-types";
 import { loadCharacters } from "./character-storage";
 import { buildMemoryRoster, isForeignMemoryText, retainPersonalMemoryProse } from "./group-memory-scope";
 import {
     loadMemoryConfig,
     loadMemoryEntries,
     saveMemoryEntry,
-    deleteMemoryEntries,
     getEventCounter,
     resetEventCounter,
     getLastSummarizedTimestamp,
@@ -23,6 +22,7 @@ import { generateEmbedding, resolveEmbeddingModel } from "./memory-embedding";
 import { simpleLLMCall } from "./api-helpers";
 import { maybeRunCoreMemoryPipeline } from "./core-memory-builder";
 import { maybeRunConsolidation } from "./memory-consolidation";
+import { logMemoryTask, logMemoryWrite, memorySwitchSnapshot } from "./memory-recall-log";
 
 /** Per-character lock to prevent concurrent summarization. */
 const summarizingSet = new Set<string>();
@@ -290,11 +290,30 @@ ${PERSONAL_MEMORY_ATTRIBUTION_RULE.replace(/\{\{char\}\}/gi, characterName)}`;
     setLastSummarizedTimestamp(characterId, latest);
     resetEventCounter(characterId);
 
-    // Enforce long-term limit
-    const allLongTerm = await loadMemoryEntries(characterId);
-    if (allLongTerm.length > config.maxLongTermEntries) {
-        const excess = allLongTerm.slice(0, allLongTerm.length - config.maxLongTermEntries);
-        await deleteMemoryEntries(excess.map(e => e.id));
+    // 容量清理：**只作用于长期记忆**，而且只归档、不删除。
+    //
+    // 旧写法读的是 loadMemoryEntries（long_term + core 都要），再按 createdAt 从最旧
+    // 往下删——核心记忆恰恰是创建最早的，于是"清理长期记忆"会把核心记忆一起删掉。
+    // 现在：核心 / 固定保留 / 手工确认一律豁免；超过上限的最旧条目改为标记 archived
+    //（保留证据与恢复能力），归档后不再参与召回，也不再计入容量。
+    const longTermEntries = (await loadMemoryEntries(characterId))
+        .filter(entry => entry.type === "long_term" && entry.metadata?.archived !== true);
+    const evictable = longTermEntries.filter(entry => !isProtectedEntry(entry));
+    if (evictable.length > config.maxLongTermEntries) {
+        const overflow = evictable.slice(0, evictable.length - config.maxLongTermEntries);
+        for (const entry of overflow) {
+            await saveMemoryEntry({
+                ...entry,
+                updatedAt: now,
+                metadata: { ...entry.metadata, archived: true, archivedAt: now },
+            });
+            logMemoryWrite({
+                action: "archive",
+                characterId,
+                entryId: entry.id,
+                outcome: "超出容量上限，归档而非删除",
+            });
+        }
     }
 
     incrementCoreMemoryCounter(characterId);
@@ -303,6 +322,14 @@ ${PERSONAL_MEMORY_ATTRIBUTION_RULE.replace(/\{\{char\}\}/gi, characterName)}`;
     // 空闲固化：新记忆积累够重要时后台反思+性格漂移（自身有水位线门控，不怕频繁调用）
     void maybeRunConsolidation(characterId, characterName).catch((error) => {
         console.warn("[MemorySummarizer] consolidation tail failed:", error);
+    });
+
+    logMemoryTask({
+        task: "summarize",
+        characterId,
+        switches: memorySwitchSnapshot(),
+        action: "create",
+        outcome: `总结 ${allEntries.length} 条事件 → 1 条长期记忆 + ${episodes.length} 条事件，归档 ${Math.max(0, evictable.length - config.maxLongTermEntries)} 条`,
     });
 
     console.log(`[MemorySummarizer] Summarized ${allEntries.length} entries → 1 long-term memory`);

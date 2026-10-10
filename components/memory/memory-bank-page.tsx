@@ -28,6 +28,7 @@ import { runCoreMemoryPipeline } from "@/lib/core-memory-builder";
 import { buildMemoryIndex, resolveEvidenceChain, buildChainTree, diagnoseMemoryHealth, repairDanglingLinks, type MemoryChainNode, type MemoryHealthReport } from "@/lib/memory-graph";
 import { loadPersonaState, revertTraitShift, type PersonaState } from "@/lib/persona-state";
 import { runConsolidation } from "@/lib/memory-consolidation";
+import { clearMemoryRecallLog, exportMemoryRecallLog, readMemoryRecallLog } from "@/lib/memory-recall-log";
 import { resolveAuxiliaryApiConfig, resolveUserIdentity } from "@/lib/settings-storage";
 import { generateEmbedding, resolveEmbeddingModel } from "@/lib/memory-embedding";
 import { BINDING_ACCENTS } from "@/lib/ui-accent-colors";
@@ -239,6 +240,27 @@ export function MemoryBankPage({
     const [summarizeRangeOpen, setSummarizeRangeOpen] = useState(false);
     const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
     const [activeTimelineTags, setActiveTimelineTags] = useState<Set<string>>(new Set());
+    /** 检索日志条数，进入设置页时刷新一次（只用于文案） */
+    const [logCount, setLogCount] = useState(0);
+
+    useEffect(() => {
+        if (view !== "settings") return;
+        setLogCount(readMemoryRecallLog().length);
+    }, [view]);
+
+    const handleExportLog = useCallback(async () => {
+        const { downloadFile } = await import("@/lib/download-utils");
+        const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+        await downloadFile(
+            new Blob([exportMemoryRecallLog()], { type: "application/json" }),
+            `float-memory-log-${stamp}.json`,
+        );
+    }, []);
+
+    const handleClearLog = useCallback(() => {
+        clearMemoryRecallLog();
+        setLogCount(0);
+    }, []);
 
     const disabledSourceCount = MEMORY_SOURCE_OPTIONS
         .filter(source => (config.shortTermAllowedSources ?? {})[source.key] === false).length;
@@ -703,7 +725,8 @@ export function MemoryBankPage({
         if (!selectedCharId || !selectedChar || consolidating) return;
         setConsolidating(true);
         try {
-            const result = await runConsolidation(selectedCharId, selectedChar.name);
+            // manual：用户显式点了"整理记忆"，不受"自动反思"总闸限制。
+            const result = await runConsolidation(selectedCharId, selectedChar.name, undefined, { manual: true });
             if (!result.ran) {
                 showNotice(result.error || "素材不足，暂无可整理的沉淀");
             } else {
@@ -1330,6 +1353,20 @@ export function MemoryBankPage({
                         </div>
                     </div>
                     <div className="menu-item">
+                        <MemorySettingsIcon icon={Brain} color={BINDING_ACCENTS.embedding} />
+                        <div className="menu-label-group">
+                            <span className="menu-label">自动反思</span>
+                            <span className="menu-desc">默认关闭。打开后，空闲整理才会跨多条记忆生成"新结论"。反思是推断而不是事实：无论开关如何，它都不会再进入事实召回与核心记忆，"整理记忆"按钮不受此开关限制。</span>
+                        </div>
+                        <div className="menu-right">
+                            <Toggle checked={config.autoReflectionEnabled === true} onChange={(v) => {
+                                const next = { ...config, autoReflectionEnabled: v };
+                                setConfig(next);
+                                saveMemoryConfig(next);
+                            }} />
+                        </div>
+                    </div>
+                    <div className="menu-item">
                         <MemorySettingsIcon icon={Brain} color={BINDING_ACCENTS.memory} />
                         <div className="menu-label-group">
                             <span className="menu-label">自动性格漂移</span>
@@ -1355,6 +1392,36 @@ export function MemoryBankPage({
                                 setConfig(next);
                                 saveMemoryConfig(next);
                             }} />
+                        </div>
+                    </div>
+                </div>
+
+                {/* 检索日志：可检查、可关闭、有限容量、不含密钥 */}
+                <p className="menu-group-desc mx-2">诊断日志</p>
+                <div className="menu-group">
+                    <div className="menu-item">
+                        <MemorySettingsIcon icon={FileText} color={BINDING_ACCENTS.api} />
+                        <div className="menu-label-group">
+                            <span className="menu-label">记忆检索日志</span>
+                            <span className="menu-desc">记录每轮召回了哪些记忆、分数怎么来的、谁没入选，以及各后台任务的开关状态。只存本机、有限容量、不含 API 密钥。</span>
+                        </div>
+                        <div className="menu-right">
+                            <Toggle checked={config.memoryRecallLogEnabled !== false} onChange={(v) => {
+                                const next = { ...config, memoryRecallLogEnabled: v };
+                                setConfig(next);
+                                saveMemoryConfig(next);
+                            }} />
+                        </div>
+                    </div>
+                    <div className="menu-item">
+                        <MemorySettingsIcon icon={Archive} color={BINDING_ACCENTS.api} />
+                        <div className="menu-label-group">
+                            <span className="menu-label">导出诊断文件</span>
+                            <span className="menu-desc">当前有 {logCount} 条记录。导出前会递归剔除密钥字段，排查"记过却想不起来"时把它发出来。</span>
+                        </div>
+                        <div className="menu-right">
+                            <button className="menu-label ts-12 underline" onClick={handleExportLog}>导出</button>
+                            <button className="menu-label menu-label-danger ts-12 underline ml-3" onClick={handleClearLog}>清空</button>
                         </div>
                     </div>
                 </div>

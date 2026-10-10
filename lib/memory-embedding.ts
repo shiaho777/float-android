@@ -187,3 +187,54 @@ export function keywordOverlapRatio(textA: string, textB: string): number {
     }
     return overlap / Math.min(tokensA.size, tokensB.size);
 }
+
+// ── Lexical relevance (召回的文字检索兜底) ──
+//
+// 没有向量、向量服务失败、或条目当初没索引时，召回不能只剩"新近 + 重要性"——
+// 那样一条明确提到"振袖"的旧记忆会因为没有向量而永远挤不进上下文（用户口中的
+// "明明记过却想不起来"）。这里提供与向量分数同量级（0..1）的文字相关性打分。
+
+/** 命中整段原文（人名、事件名、专有名词）时在覆盖率之上追加的强度 */
+const LEXICAL_PHRASE_BONUS = 0.35;
+
+/** 预处理过的查询词表：对同一批候选复用，避免逐条重复分词。 */
+export type LexicalQueryTokens = {
+    /** 去重后的查询词元（CJK 二元组 + 拉丁词），已小写 */
+    tokens: string[];
+    /** 查询按标点切出的短语（长度 ≥2），已小写，用于"整段命中"强信号 */
+    phrases: string[];
+};
+
+export function prepareLexicalQuery(query: string): LexicalQueryTokens {
+    const q = query.trim();
+    if (!q) return { tokens: [], phrases: [] };
+    return {
+        tokens: Array.from(new Set(extractTokens(q))),
+        phrases: Array.from(new Set(
+            q.split(/[\s,，。、；;：:!！?？"'“”‘’()（）\[\]【】…—\-]+/)
+                .map(segment => segment.trim().toLowerCase())
+                .filter(segment => segment.length >= 2),
+        )),
+    };
+}
+
+/**
+ * 文字相关性（0..1，未归一化）。
+ *
+ * 想定用途是**批量归一化**：同一轮召回里把各候选的原始分除以最高分，得到 0..1 的
+ * 相对相关性——一个明确的关键词命中会成为 1.0，从而真正压过"只是比较新"的条目。
+ * 长查询的词元覆盖天然偏低，所以不做批内归一就会出现"关键词命中了但权重被稀释"。
+ */
+export function lexicalRelevanceScore(query: LexicalQueryTokens, content: string): number {
+    const c = content.trim();
+    if (!c || (query.tokens.length === 0 && query.phrases.length === 0)) return 0;
+    const contentTokens = new Set(extractTokens(c));
+    let matched = 0;
+    for (const token of query.tokens) {
+        if (contentTokens.has(token)) matched++;
+    }
+    const coverage = query.tokens.length > 0 ? matched / query.tokens.length : 0;
+    const lowered = c.toLowerCase();
+    const phraseHit = query.phrases.some(phrase => lowered.includes(phrase));
+    return Math.min(1, coverage + (phraseHit ? LEXICAL_PHRASE_BONUS : 0));
+}

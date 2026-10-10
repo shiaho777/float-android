@@ -1734,7 +1734,8 @@ async function executeMemoryManageTool(call: ToolCall, context?: ToolExecutionCo
         }
         // 整理记忆
         const charName = loadCharacters().find(c => c.id === characterId)?.name ?? "角色";
-        const result = await runConsolidation(characterId, charName);
+        // manual：角色被明确要求"整理记忆"，属于显式触发，不受自动反思总闸限制。
+        const result = await runConsolidation(characterId, charName, undefined, { manual: true });
         const data = result.ran
             ? `整理完成：产生 ${result.reflections} 条洞察、${result.traitShifts} 处性格变化、合并 ${result.deduped} 条重复记忆`
             : `暂时整理不出新东西（${result.error ?? "素材不足"}）`;

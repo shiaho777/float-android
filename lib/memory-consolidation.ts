@@ -5,10 +5,19 @@
 //   3. 去重：同 kind 且文字近重复的条目合并（保新删旧，links 并集）。
 //
 // 触发：总结管线尾部（重要性积累到位自然跟上）+ 空闲调度器周期 tick。
+//
+// 开关语义（重要，别搞混）：
+//   autoReflectionEnabled  反思总闸，**默认关**。关掉后**后台**（空闲扫描 + 总结尾部）
+//                          不再产出任何 reflection / trait_shift —— 反思是推断不是事实，
+//                          让它自动生长正是"推测逐渐变成事实"的根源。
+//   autoPersonaDriftEnabled 性格漂移闸，默认关。比反思更严的一层。
+//   手动触发（记忆页"整理记忆"、角色工具 runConsolidation）不受总闸限制，因为它是
+//      用户/角色显式发起的，且会写进检索日志。
+//
 // 兼容：全部走 saveMemoryEntry，字段可选；无任何 LLM 绑定时安静跳过。
 
 import type { MemoryEntry } from "./memory-types";
-import { memoryKindOf, effectiveSalience } from "./memory-types";
+import { memoryKindOf, effectiveSalience, isFactEntry } from "./memory-types";
 import {
     loadMemoryEntries,
     saveMemoryEntry,
@@ -23,6 +32,7 @@ import { simpleLLMCall } from "./api-helpers";
 import { applyTraitShift, loadPersonaState } from "./persona-state";
 import { loadCharacters } from "./character-storage";
 import { buildMemoryRoster, isForeignMemoryText } from "./group-memory-scope";
+import { logMemoryTask, memorySwitchSnapshot } from "./memory-recall-log";
 
 /** 固化水位线无活动时多久强制跑一次（毫秒）；有活动时靠总结尾部触发 */
 const MIN_INTERVAL_MS = 6 * 60 * 60 * 1000;
@@ -46,17 +56,31 @@ export type ConsolidationResult = {
     error?: string;
 };
 
-/** 门控：距上次固化够久 且 期间有新记忆积累，才值得跑。 */
+/** 当前开关状态快照，只用于日志与门控，不含任何密钥。 */
+function currentSwitches(): Record<string, boolean> {
+    return memorySwitchSnapshot();
+}
+
+/** 门控：开关打开 且 距上次固化够久 且 期间有新记忆积累，才值得跑。 */
 export async function maybeRunConsolidation(
     characterId: string,
     characterName: string,
 ): Promise<void> {
     if (consolidatingSet.has(characterId)) return;
+
+    // 反思总闸（默认关）+ 上游总结开关。任一关掉，后台就不再产出反思与性格变化——
+    // 这是"关掉自动总结后后台仍生成反思"的直接修复点。
+    const config = loadMemoryConfig();
+    if (!config.autoReflectionEnabled) return;
+    if (!config.autoSummarizeEnabled) return;
+
     const last = getLastConsolidatedTimestamp(characterId);
     if (last && Date.now() - Date.parse(last) < MIN_INTERVAL_MS) return;
 
     const entries = await loadMemoryEntries(characterId);
-    const fresh = last ? entries.filter(e => e.createdAt > last) : entries;
+    // 事实层才是原料：已有反思不能当新反思的证据（否则推断自我繁殖）。
+    const fresh = (last ? entries.filter(e => e.createdAt > last) : entries)
+        .filter(e => e.type === "long_term" && isFactEntry(e));
     // 新积累量太少（<4 条或累计重要性 <12）不值得一次反思调用
     const salienceSum = fresh.reduce((acc, e) => acc + effectiveSalience(e), 0);
     if (fresh.length < 4 || salienceSum < 12) {
@@ -66,7 +90,9 @@ export async function maybeRunConsolidation(
 
     consolidatingSet.add(characterId);
     try {
-        await runConsolidation(characterId, characterName, fresh);
+        await runConsolidation(characterId, characterName, fresh, {
+            driftEnabled: config.autoPersonaDriftEnabled === true,
+        });
     } catch (error) {
         console.warn("[MemoryConsolidation] failed:", error);
     } finally {
@@ -78,6 +104,9 @@ export async function maybeRunConsolidation(
 export async function runConsolidationSweep(
     characters: { id: string; name: string }[],
 ): Promise<void> {
+    // 调度器入口也检查开关：省掉每个角色的读盘与门控开销，也让"关了就是关了"更直白。
+    const config = loadMemoryConfig();
+    if (!config.autoReflectionEnabled || !config.autoSummarizeEnabled) return;
     for (const c of characters) {
         try {
             await maybeRunConsolidation(c.id, c.name);
@@ -187,7 +216,24 @@ export async function runConsolidation(
     characterId: string,
     characterName: string,
     freshEntries?: MemoryEntry[],
+    options?: {
+        /** 手动触发（记忆页"整理记忆"按钮 / 角色工具）：不受反思总闸限制。 */
+        manual?: boolean;
+        /** 性格漂移开关；缺省按当前配置读。 */
+        driftEnabled?: boolean;
+    },
 ): Promise<ConsolidationResult> {
+    const manual = options?.manual === true;
+
+    // 自动运行的总闸兜底：调用方（maybeRunConsolidation）已经检查过一次，
+    // 这里再查一次是为了防住"直接调用 runConsolidation 的新入口"漏检。
+    if (!manual) {
+        const gate = currentSwitches();
+        if (!gate.autoReflectionEnabled || !gate.autoSummarizeEnabled) {
+            return { ran: false, reflections: 0, traitShifts: 0, deduped: 0, error: "反思开关未打开" };
+        }
+    }
+
     // 主对话绑定优先（与总结管线一致：反思必须用角色本体模型）
     const bindings = loadBindingConfig();
     const mainSlotApiId = resolveBinding(bindings, characterId).apiConfigId;
@@ -198,9 +244,11 @@ export async function runConsolidation(
     }
 
     const all = (await loadMemoryEntries(characterId)).filter(e => e.type === "long_term");
+    // 原料与证据都取事实层：已有反思不能当新反思的证据，否则推断会自我繁殖。
+    const factEntries = all.filter(isFactEntry);
     const last = getLastConsolidatedTimestamp(characterId);
-    const candidates = (freshEntries ?? (last ? all.filter(e => e.createdAt > last) : all))
-        .filter(e => e.type === "long_term")
+    const candidates = (freshEntries ?? (last ? factEntries.filter(e => e.createdAt > last) : factEntries))
+        .filter(e => e.type === "long_term" && isFactEntry(e))
         .sort((a, b) => effectiveSalience(b) - effectiveSalience(a))
         .slice(0, REFLECTION_CANDIDATE_LIMIT);
 
@@ -213,7 +261,7 @@ export async function runConsolidation(
         .map((e, i) => `[${i + 1}] (重要性${effectiveSalience(e)}) ${e.content}`)
         .join("\n");
 
-    const driftEnabled = loadMemoryConfig().autoPersonaDriftEnabled === true;
+    const driftEnabled = options?.driftEnabled ?? (loadMemoryConfig().autoPersonaDriftEnabled === true);
     const prompt = `${REFLECTION_PROMPT}${driftEnabled ? TRAIT_PROMPT_SECTION : ""}`
         .replace(/\{\{char\}\}/gi, characterName)
         .replace(/\{\{memories\}\}/gi, memoriesText)
@@ -223,6 +271,22 @@ export async function runConsolidation(
     const result = await simpleLLMCall(apiConfig, [{ role: "user", content: prompt }], { temperature: 0.4 });
     if (!result.content || result.wasTruncated) {
         return { ran: false, reflections: 0, traitShifts: 0, deduped: 0, error: result.error || "空输出/截断" };
+    }
+
+    // 在途保护：请求往返期间用户可能把反思关掉了。自动运行此刻必须放弃写入，
+    // 否则"关了开关还在生成反思"会从这条竞态路径复活。
+    if (!manual) {
+        const nowSwitches = currentSwitches();
+        if (!nowSwitches.autoReflectionEnabled || !nowSwitches.autoSummarizeEnabled) {
+            logMemoryTask({
+                task: "consolidation(auto)",
+                characterId,
+                switches: nowSwitches,
+                action: "skip",
+                outcome: "LLM 返回时开关已关闭，放弃写入",
+            });
+            return { ran: false, reflections: 0, traitShifts: 0, deduped: 0, error: "开关已关闭" };
+        }
     }
 
     const parsed = parseConsolidationOutput(result.content);
@@ -352,5 +416,12 @@ export async function runConsolidation(
 
     setLastConsolidatedTimestamp(characterId, now);
     console.log(`[MemoryConsolidation] ${characterName}: ${reflectionCount} reflections, ${traitCount} trait shifts, ${deduped} deduped`);
+    logMemoryTask({
+        task: manual ? "consolidation(manual)" : "consolidation(auto)",
+        characterId,
+        switches: currentSwitches(),
+        action: reflectionCount > 0 || traitCount > 0 ? "create" : "skip",
+        outcome: `反思 ${reflectionCount} / 性格 ${traitCount} / 合并去重 ${deduped}`,
+    });
     return { ran: true, reflections: reflectionCount, traitShifts: traitCount, deduped };
 }

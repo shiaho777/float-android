@@ -61,7 +61,7 @@ import { setDebugPromptSnapshot, type DebugPromptSnapshot } from "./debug-store"
 import { extractFinishReason } from "./api-helpers";
 import { acquireGenerationKeepAlive } from "./keep-alive";
 import { loadMemoryConfig, incrementEventCounter } from "./memory-storage";
-import { retrieveCoreMemoriesForPrompt, retrieveMemoriesForPrompt } from "./memory-service";
+import { buildMemoryRetrievalQuery, retrieveCoreMemoriesForPrompt, retrieveMemoriesForPrompt } from "./memory-service";
 import { formatCoreMemories, formatLongTermMemories } from "./memory-injector";
 import { maybeRunSummarization } from "./memory-summarizer";
 import { prepareShortTermContext } from "./short-term-assembler";
@@ -1935,7 +1935,13 @@ export async function buildChatPromptMessages(
     }
 
     const [memResults, coreResults, musicLocal, musicCloud] = await Promise.all([
-        retrieveMemoriesForPrompt(character.id, wbActivationContext, memConfig).catch(() => null),
+        // 召回主线用"当前用户消息 + 最近几轮对话"，世界书命中只当背景——
+        // 以前整轮只喂 wbActivationContext，日历/今日世界里的无关事件会主导检索。
+        retrieveMemoriesForPrompt(
+            character.id,
+            buildMemoryRetrievalQuery(promptHistory, wbActivationContext),
+            memConfig,
+        ).catch(() => null),
         retrieveCoreMemoriesForPrompt(character.id, memConfig).catch(() => null),
         buildMusicLocalMacro(),
         buildMusicCloudMacro(),
