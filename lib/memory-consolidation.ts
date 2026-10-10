@@ -17,7 +17,7 @@
 // 兼容：全部走 saveMemoryEntry，字段可选；无任何 LLM 绑定时安静跳过。
 
 import type { MemoryEntry } from "./memory-types";
-import { memoryKindOf, effectiveSalience, isFactEntry } from "./memory-types";
+import { memoryKindOf, effectiveSalience, isFactEntry, memoryEventIdOf, memoryStatusOf } from "./memory-types";
 import {
     loadMemoryEntries,
     saveMemoryEntry,
@@ -78,9 +78,10 @@ export async function maybeRunConsolidation(
     if (last && Date.now() - Date.parse(last) < MIN_INTERVAL_MS) return;
 
     const entries = await loadMemoryEntries(characterId);
-    // 事实层才是原料：已有反思不能当新反思的证据（否则推断自我繁殖）。
+    // 事实层才是原料：已有反思不能当新反思的证据（否则推断自我繁殖）；
+    // 已作废 / 待重算的条目同样不作数，否则"被推翻的事"会继续被拿去推理。
     const fresh = (last ? entries.filter(e => e.createdAt > last) : entries)
-        .filter(e => e.type === "long_term" && isFactEntry(e));
+        .filter(e => e.type === "long_term" && isFactEntry(e) && memoryStatusOf(e) === "active");
     // 新积累量太少（<4 条或累计重要性 <12）不值得一次反思调用
     const salienceSum = fresh.reduce((acc, e) => acc + effectiveSalience(e), 0);
     if (fresh.length < 4 || salienceSum < 12) {
@@ -244,11 +245,12 @@ export async function runConsolidation(
     }
 
     const all = (await loadMemoryEntries(characterId)).filter(e => e.type === "long_term");
-    // 原料与证据都取事实层：已有反思不能当新反思的证据，否则推断会自我繁殖。
-    const factEntries = all.filter(isFactEntry);
+    // 原料与证据都取事实层且状态有效：已有反思不能当新反思的证据（否则推断会自我繁殖），
+    // 已作废 / 待重算的条目也不能当证据（否则被推翻的事会继续支撑新推断）。
+    const factEntries = all.filter(e => isFactEntry(e) && memoryStatusOf(e) === "active");
     const last = getLastConsolidatedTimestamp(characterId);
     const candidates = (freshEntries ?? (last ? factEntries.filter(e => e.createdAt > last) : factEntries))
-        .filter(e => e.type === "long_term" && isFactEntry(e))
+        .filter(e => e.type === "long_term" && isFactEntry(e) && memoryStatusOf(e) === "active")
         .sort((a, b) => effectiveSalience(b) - effectiveSalience(a))
         .slice(0, REFLECTION_CANDIDATE_LIMIT);
 
@@ -304,9 +306,14 @@ export async function runConsolidation(
     const acceptedReflectionTexts: string[] = [];
 
     for (const ref of parsed.reflections) {
-        // 没有两条以上证据的「洞察」多半是把某一条记忆换了个说法。
-        if (ref.evidenceIdx.length < 2) continue;
-        const evidenceTexts = ref.evidenceIdx
+        // 证据编号必须有效且唯一；而且至少要两条**独立事件**。
+        // 一条 summary 与它派生的 episode 共享 eventId —— 它们是同一次经历的两面，
+        // 不能各算一份证据，否则"一件事"就能凑出"两条记忆共同证明"的假象。
+        const validIdx = Array.from(new Set(ref.evidenceIdx.filter(index => index >= 1 && index <= candidates.length)));
+        if (validIdx.length < 2) continue;
+        const distinctEvents = new Set(validIdx.map(index => memoryEventIdOf(candidates[index - 1])));
+        if (distinctEvents.size < 2) continue;
+        const evidenceTexts = validIdx
             .map(index => candidates[index - 1]?.content)
             .filter((content): content is string => Boolean(content));
         const duplicateOf = [...existingLongTerm.map(entry => entry.content), ...acceptedReflectionTexts];
@@ -330,10 +337,18 @@ export async function runConsolidation(
             embedding,
             importance: 0.9,
             salience: 9,
-            links: evidenceIdsFor(ref.evidenceIdx),
+            links: evidenceIdsFor(validIdx),
             createdAt: now,
             updatedAt: now,
-            metadata: { generatedBy: "consolidation" },
+            metadata: {
+                generatedBy: "consolidation",
+                // 反思是推断，不是事实：标出性质并单独保存，不自动进入核心、不改写人物卡。
+                contentKind: "reflection",
+                sourceKind: "character_said",
+                occurredAt: now,
+                status: "active",
+                revision: 1,
+            },
         });
         acceptedReflectionTexts.push(ref.content);
         reflectionCount++;
@@ -345,7 +360,10 @@ export async function runConsolidation(
         .map(entry => entry.content);
 
     for (const tr of driftEnabled ? parsed.traits : []) {
-        if (tr.evidenceIdx.length < 2) continue;
+        // 与反思同样的证据门槛：编号有效唯一，且至少两条**独立事件**。
+        const traitIdx = Array.from(new Set(tr.evidenceIdx.filter(index => index >= 1 && index <= candidates.length)));
+        if (traitIdx.length < 2) continue;
+        if (new Set(traitIdx.map(index => memoryEventIdOf(candidates[index - 1]))).size < 2) continue;
         if (Math.abs(tr.delta) < MIN_TRAIT_DELTA) continue;
         if (activeTraitKeys.has(tr.key)) continue;
         const traitText = `性格变化：${tr.desc}（${tr.key} ${tr.delta > 0 ? "+" : ""}${tr.delta}）`;
@@ -353,7 +371,7 @@ export async function runConsolidation(
             continue;
         }
         const id = `mem_ts_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-        const evidenceIds = evidenceIdsFor(tr.evidenceIdx);
+        const evidenceIds = evidenceIdsFor(traitIdx);
         await saveMemoryEntry({
             id,
             characterId,
@@ -366,7 +384,15 @@ export async function runConsolidation(
             links: evidenceIds,
             createdAt: now,
             updatedAt: now,
-            metadata: { generatedBy: "consolidation", traitKey: tr.key, delta: tr.delta },
+            metadata: {
+                generatedBy: "consolidation",
+                traitKey: tr.key,
+                delta: tr.delta,
+                contentKind: "reflection",
+                occurredAt: now,
+                status: "active",
+                revision: 1,
+            },
         });
         applyTraitShift(characterId, {
             traitKey: tr.key,
