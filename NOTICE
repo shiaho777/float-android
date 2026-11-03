@@ -1,7 +1,17 @@
-AI Virtual Phone
+Pneuma
 
-This project is independently implemented and licensed under the GNU Affero
-General Public License v3.0 only (AGPL-3.0-only).
+Pneuma is licensed under the GNU Affero General Public License v3.0 only
+(AGPL-3.0-only).
+
+Pneuma is a modified version of AI Virtual Phone
+(https://github.com/xiaolongbao0709/ai-virtual-phone), by way of its derivative
+Float. The original notice of AI Virtual Phone follows and is preserved as
+required by the license:
+
+  AI Virtual Phone
+
+  This project is independently implemented and licensed under the GNU Affero
+  General Public License v3.0 only (AGPL-3.0-only).
 
 Some product ideas and interaction patterns were inspired by SillyTavern,
 including presets, regex-based processing, and world/lore book concepts.

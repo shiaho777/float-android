@@ -185,7 +185,7 @@ export async function startDownload(rel: ReleaseInfo): Promise<void> {
         return;
     }
     await bindNativeListeners();
-    const fileName = rel.apkName || `float-${rel.tag}.apk`;
+    const fileName = rel.apkName || `pneuma-${rel.tag}.apk`;
     set({ phase: "downloading", tag: rel.tag, fileName, url: rel.downloadUrl, received: 0, total: rel.apkSize, speedBps: 0 });
     persistResumable();
     try {

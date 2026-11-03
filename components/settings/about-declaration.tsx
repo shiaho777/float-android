@@ -59,7 +59,7 @@ export function AboutDeclaration() {
             <div className="g-card about-app-card">
                 <img src="/icon-512.png" alt="" className="about-app-icon" />
                 <div className="flex flex-col flex-1 min-w-0">
-                    <span className="menu-label font-semibold">Float</span>
+                    <span className="menu-label font-semibold">Pneuma</span>
                     <span className="menu-desc ts-12 !mt-0">v{version}</span>
                 </div>
                 <button

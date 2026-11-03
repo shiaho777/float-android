@@ -64,14 +64,14 @@ jobs:
             exit 1
           fi
           mkdir -p dist
-          cp android/app/build/outputs/apk/release/app-release.apk "dist/float-android-${version}.apk"
+          cp android/app/build/outputs/apk/release/app-release.apk "dist/pneuma-android-${version}.apk"
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "file=dist/float-android-${version}.apk" >> "$GITHUB_OUTPUT"
+          echo "file=dist/pneuma-android-${version}.apk" >> "$GITHUB_OUTPUT"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: float-android-${{ steps.apk.outputs.version }}
+          name: pneuma-android-${{ steps.apk.outputs.version }}
           path: ${{ steps.apk.outputs.file }}
           if-no-files-found: error
           retention-days: 14

@@ -1,5 +1,13 @@
 # 更新日志
 
+## [未发布]
+
+### 变更
+
+- 项目更名为 **Pneuma**，启用新图标（"呼吸"之意的 P 字形 + 气流线，克莱因蓝渐变）。应用名、网页标题、PWA 清单、启动动画字样、安装包文件名（`pneuma-android-<版本号>.apk`）随之更新。包名 `app.floatphone.app` 与存储键保持不变，旧版可覆盖升级，数据不丢。
+- 发布方式改为在 Releases 直接附带 APK，应用内检查更新可直接下载；README 重写。
+- 图标、启动图全部由 `assets/brand/*.svg` 生成（`npm run build:brand-assets`），新增 Android 自适应图标的渐变背景层与 Android 13 主题图标（monochrome）层、PWA maskable 图标与 apple-touch-icon。删除未被使用的旧 `scripts/generate-icons.js`。
+
 
 ## [1.0.3]（未发布）
 

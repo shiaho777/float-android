@@ -70,7 +70,7 @@ API 配置里的开关。开启后支持 function calling 的模型走原生工�
 ### Q: 怎么部署？
 两种方式，部署使用 main。
 
-安装包：Fork 仓库，在 Actions 里运行 Build Android Shell APK，下载附件 float-android- 加版本号，解压得到 float-android-<版本号>.apk 后安装，例如 float-android-1.0.2.apk。这是正式构建。附件保留 14 天。更新时用 Sync fork 拉新提交，再构建一次。仓库不放私人签名，这些包用共享证书签名，可以覆盖上一只自己构建的包。手机认源码里的 versionCode，这个数字加一之后，系统才会把它当成更新。以前装过另一把证书的包，第一次要先导出存档，卸载后再安装，然后导入。
+安装包：到 GitHub Releases 下载 pneuma-android-<版本号>.apk 安装，例如 pneuma-android-1.0.2.apk。之后在「设置 → 关于与声明 → 检查更新」可以直接下载新版本。也可以自己构建：Fork 仓库后在 Actions 里运行 Build Android Shell APK，附件保留 14 天。手机认 versionCode，这个数字加一之后系统才会把它当成更新。以前装过另一把证书的包，第一次要先导出存档，卸载后再安装，然后导入。
 
 网页：把仓库交给 Netlify、Cloudflare Pages、Vercel，或任何静态托管。构建命令是 npm run build，发布目录是 out，站点挂在域名根目录。Netlify 和 Vercel 会读仓库里的配置。Cloudflare Pages 在项目设置里填同样的构建命令和输出目录。环境变量可以留空。本地预览：Node.js 20+，npm install，然后 npm run dev（端口 3001）。npm run build 之后也可以把 out 目录直接上传。
 

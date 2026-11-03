@@ -123,7 +123,7 @@ export async function importChatRecordFile(
 ): Promise<{ inserted: number; skipped: number; mediaRestored: number }> {
   const parsed = JSON.parse(await file.text()) as Partial<ChatRecordFile>;
   if (parsed.type !== "float-chat-records" || parsed.version !== 1 || !Array.isArray(parsed.messages)) {
-    throw new Error("不是有效的 Float 聊天记录文件");
+    throw new Error("不是有效的 Pneuma 聊天记录文件");
   }
   if (parsed.messages.length > 100_000) throw new Error("聊天记录超过 100000 条，请拆分后再导入");
 
