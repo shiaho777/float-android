@@ -4220,10 +4220,11 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
                 offlineTextInputRef.current?.setText(currentText);
                 showChatToast(`线下生成失败: ${error?.message || String(error)}`, 3000);
             } finally {
-                if (!finishOfflineGenerationRun(session.id, offlineRunId)) return;
-                setPendingOfflineUserText("");
-                offlineGenerationInputRef.current = "";
-                setIsOfflineGenerating(false);
+                if (finishOfflineGenerationRun(session.id, offlineRunId)) {
+                    setPendingOfflineUserText("");
+                    offlineGenerationInputRef.current = "";
+                    setIsOfflineGenerating(false);
+                }
             }
         })();
         return true;
@@ -4335,10 +4336,11 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
             offlineTextInputRef.current?.setText(retryInput);
             showChatToast(`线下重试失败: ${error?.message || String(error)}`, 3000);
         } finally {
-            if (!finishOfflineGenerationRun(session.id, offlineRunId)) return;
-            setPendingOfflineUserText("");
-            offlineGenerationInputRef.current = "";
-            setIsOfflineGenerating(false);
+            if (finishOfflineGenerationRun(session.id, offlineRunId)) {
+                setPendingOfflineUserText("");
+                offlineGenerationInputRef.current = "";
+                setIsOfflineGenerating(false);
+            }
         }
     };
 

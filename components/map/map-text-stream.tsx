@@ -66,7 +66,7 @@ export default function MapTextStream({
     <div ref={scrollRef} style={{
       flex: 1, overflowY: "auto", padding: "12px 16px",
       display: "flex", flexDirection: "column", gap: 10,
-      fontFamily: fontFamily || "var(--c-adv-font)" || "inherit",
+      fontFamily: fontFamily || "var(--c-adv-font)",
       background: transparent ? "transparent" : "var(--c-adv-stream-bg)",
     }}>
       {messages.map(msg => (

@@ -181,7 +181,7 @@ export async function importChatRecordFile(
     // 自动去重跳过），绝不能吞掉错误让用户以为导入成功、重启后数据消失。
     throw new Error(`聊天记录写入本地数据库失败（已写入的部分在重试时会自动跳过）：${
       error instanceof Error ? error.message : String(error)
-    }`);
+    }`, { cause: error });
   }
   if (inserted > 0 && typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("chat-messages-updated", { detail: { sessionId: targetSession.id } }));

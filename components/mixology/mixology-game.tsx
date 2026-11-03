@@ -520,6 +520,8 @@ export function MixologyGame({ sessionId, onBack, onToast }: GameProps) {
      */
     const sayRef = useRef<(text: string) => void>(() => {});
     const handlePanelSay = useCallback((text: string) => { sayRef.current(text); }, []);
+    /** 背景观感微调面板的开合；同理必须在提前返回之前声明 */
+    const [bgTuneOpen, setBgTuneOpen] = useState(false);
 
     if (!session) {
         return (
@@ -832,7 +834,6 @@ export function MixologyGame({ sessionId, onBack, onToast }: GameProps) {
     const canReroll = !busy && lastTurn?.role === "assistant" && session.turns.length > 1;
 
     /** 背景观感微调：蒙版提亮（0=原样，100=无蒙版）与封面模糊，按局保存 */
-    const [bgTuneOpen, setBgTuneOpen] = useState(false);
     const bgTune = session.bgTune ?? { mask: 0, blur: 0 };
     const setBgTune = (next: { mask: number; blur: number }) => {
         const updated: MixSession = { ...session, bgTune: next };
@@ -1190,7 +1191,6 @@ export function MixologyGame({ sessionId, onBack, onToast }: GameProps) {
                                                 {mat ? (
                                                     <>
                                                         {mat.cover ? (
-                                                            // eslint-disable-next-line @next/next/no-img-element
                                                             <img className="mix-slot-cover" src={mat.cover} alt={mat.name} />
                                                         ) : (
                                                             <div className="mix-slot-glyph"><KindGlyph kind={kind} size={34} /></div>

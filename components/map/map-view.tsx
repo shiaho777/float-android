@@ -721,7 +721,7 @@ export default function MapView({ world, save, onSaveUpdate, onBack }: Props) {
       // Handle position change from DM
       let newNodeId = save.currentNodeId;
       let newNodeType = save.currentNodeType;
-      let newDiscovered = [...new Set([...save.discoveredNodes, ...(ev.unlocks || [])])];
+      const newDiscovered = [...new Set([...save.discoveredNodes, ...(ev.unlocks || [])])];
 
       // Unified move_to handling: string = everyone moves; object = per-person
       const fuzzyNode = (name: string) =>
@@ -811,9 +811,6 @@ export default function MapView({ world, save, onSaveUpdate, onBack }: Props) {
         setActiveEvent(null);
         setActiveEventMeta(null);
         setAccumulatedEvent(null);
-        if (false) {
-          // dead code to preserve original block structure
-        }
         return;
       }
 

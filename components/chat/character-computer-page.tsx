@@ -192,8 +192,7 @@ export function CharacterComputerPage({ characterId, characterName, onClose }: {
                         </div>
                         <div className="modal-body" data-ui="modal-body" style={{ overflowY: "auto", minHeight: 0 }}>
                             {preview.kind === "image"
-                                ? /* eslint-disable-next-line @next/next/no-img-element */
-                                  <img src={preview.content} alt={preview.name} style={{ maxWidth: "100%", borderRadius: 8 }} />
+                                ? <img src={preview.content} alt={preview.name} style={{ maxWidth: "100%", borderRadius: 8 }} />
                                 : (
                                     <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", fontFamily: "inherit", fontSize: 14, lineHeight: 1.8, margin: 0 }}>
                                         {preview.content}{preview.truncated ? "\n…（文件较长，完整内容请保存后查看）" : ""}

@@ -1635,8 +1635,6 @@ function MascotWidget() {
         }
       `}</style>
       <div className="wg-mascot" data-active={isFloating ? "true" : undefined}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img className="wg-mascot-img" src={mascotAvatarUrl} alt={mascotSettings.nickname || "AI助手"} />
         <div className="wg-mascot-bubble">
           <span>{isFloating ? "✦ 在线中~" : "✦ 点击召唤我哦~ ♡"}</span>

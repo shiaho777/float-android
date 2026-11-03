@@ -166,7 +166,7 @@ export async function transcribeAudioBlob(blob: Blob, config: CloudSttConfig): P
         return (await res.text()).trim();
     } catch (e) {
         if (e instanceof DOMException && e.name === "AbortError") {
-            throw new Error(`语音识别超时（超过 ${Math.round(TRANSCRIBE_TIMEOUT_MS / 1000)} 秒无响应）`);
+            throw new Error(`语音识别超时（超过 ${Math.round(TRANSCRIBE_TIMEOUT_MS / 1000)} 秒无响应）`, { cause: e });
         }
         throw e;
     } finally {

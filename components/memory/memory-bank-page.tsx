@@ -1675,7 +1675,6 @@ export function MemoryBankPage({
                                 ? (characters.find(c => c.character.id === pickedCharId)?.character.avatar || "")
                                 : (resolveUserIdentity()?.avatarUrl || "");
                             return coverSrc ? (
-                                // eslint-disable-next-line @next/next/no-img-element
                                 <img
                                     src={coverSrc}
                                     alt=""

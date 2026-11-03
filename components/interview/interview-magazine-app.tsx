@@ -456,8 +456,6 @@ export function InterviewMagazineApp({ onClose }: Props) {
       transcript: baseMessages,
       round,
       lastUserAnswer,
-      // @ts-ignore - legacy signature missing phase
-      phase: "嘉宾回答",
     });
     if (!isInterviewRunCurrent(runId)) return;
     const withAnswer = [...baseMessages, makeInterviewMessage("character", answer, {

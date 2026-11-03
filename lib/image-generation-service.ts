@@ -310,7 +310,7 @@ export async function fetchImageGenerationModels(settings: Pick<ImageGenerationS
     return extractModels(JSON.parse(text));
   } catch (error) {
     if (error instanceof TypeError) {
-      throw new Error("浏览器直连失败：该 API 可能未允许跨域请求。");
+      throw new Error("浏览器直连失败：该 API 可能未允许跨域请求。", { cause: error });
     }
     throw error;
   }
@@ -367,10 +367,10 @@ async function generateImageDirect(params: {
     return await parseImageGenerationResponse(await httpFetch(url, { method: "POST", headers, body, signal: controller.signal }), signal);
   } catch (error) {
     if (controller.signal.aborted && !signal?.aborted) {
-      throw new Error(proxyBaseUrl ? "生图代理超时（360 秒未返回）" : "生图请求超时（360 秒未返回）");
+      throw new Error(proxyBaseUrl ? "生图代理超时（360 秒未返回）" : "生图请求超时（360 秒未返回）", { cause: error });
     }
     if (error instanceof TypeError) {
-      throw new Error(proxyBaseUrl ? "生图代理连接失败" : "浏览器直连失败：该 API 可能未允许跨域请求。");
+      throw new Error(proxyBaseUrl ? "生图代理连接失败" : "浏览器直连失败：该 API 可能未允许跨域请求。", { cause: error });
     }
     throw error;
   } finally {
@@ -397,7 +397,7 @@ async function generateImageViaServerOrProxy(params: {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (message.includes("生图代理连接失败")) {
-        throw new Error("生图代理连接失败:当前网络可能无法访问代理服务器(部分地区需开启代理),或稍后重试。");
+        throw new Error("生图代理连接失败:当前网络可能无法访问代理服务器(部分地区需开启代理),或稍后重试。", { cause: error });
       }
       throw error;
     }
@@ -486,12 +486,12 @@ async function requestNovelAi(params: {
     return await parseNovelAiImageResponse(res);
   } catch (error) {
     if (controller.signal.aborted && !signal?.aborted) {
-      throw new Error(proxied ? "NovelAI 代理请求超时（180 秒未返回）" : "NovelAI 直连请求超时（180 秒未返回）");
+      throw new Error(proxied ? "NovelAI 代理请求超时（180 秒未返回）" : "NovelAI 直连请求超时（180 秒未返回）", { cause: error });
     }
     if (error instanceof TypeError) {
       throw new Error(proxied
         ? "NovelAI 生图代理连接失败：请检查代理配置或稍后重试。"
-        : "NovelAI 浏览器直连失败：可能受到浏览器跨域 (CORS) 限制，请在生图设置中将请求方式切换为「服务端转发」。");
+        : "NovelAI 浏览器直连失败：可能受到浏览器跨域 (CORS) 限制，请在生图设置中将请求方式切换为「服务端转发」。", { cause: error });
     }
     throw error;
   } finally {
@@ -560,13 +560,13 @@ export async function fetchNovelAiModels(apiKey: string): Promise<string[]> {
     return [...NOVELAI_COMMON_MODELS];
   } catch (error) {
     if (controller.signal.aborted) {
-      throw new Error("NovelAI Token 验证超时，请检查网络后重试。");
+      throw new Error("NovelAI Token 验证超时，请检查网络后重试。", { cause: error });
     }
     if (error instanceof TypeError) {
-      throw new Error("无法连接 NovelAI，请检查网络后重试。");
+      throw new Error("无法连接 NovelAI，请检查网络后重试。", { cause: error });
     }
     if (error instanceof Error) throw error;
-    throw new Error("NovelAI Token 验证失败，请检查网络后重试。");
+    throw new Error("NovelAI Token 验证失败，请检查网络后重试。", { cause: error });
   } finally {
     clearTimeout(timeout);
   }

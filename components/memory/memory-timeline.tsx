@@ -363,7 +363,6 @@ function renderWithStickers(text: string) {
         if (m) {
             const sticker = findStickerByName(m[1]);
             if (sticker?.stickerUrl) {
-                // eslint-disable-next-line @next/next/no-img-element
                 return <img key={i} src={sticker.stickerUrl} alt={m[1]} style={{ display: "inline-block", width: 48, height: 48, verticalAlign: "middle" }} />;
             }
             return sticker?.emoji || `[${m[1]}]`;
@@ -394,7 +393,6 @@ function MomentMemoryPhoto({ photoUrl, photoDescription }: { photoUrl?: string; 
     return (
         <div className="mem-tl-moment-photo-wrap">
             {resolvedPhotoUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img src={resolvedPhotoUrl} alt="" className="mem-tl-moment-photo" />
             )}
             {photoDescription && (

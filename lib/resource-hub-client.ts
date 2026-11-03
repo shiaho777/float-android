@@ -419,8 +419,8 @@ function translateParseError<T>(run: () => T): T {
         return run();
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        if (message === "UNSUPPORTED_IMPORT_FORMAT") throw new Error("不支持该文件的格式，请确认它是本应用导出的");
-        if (message === "CHAR_BLOCKED_FIELDS") throw new Error("不支持包含开场白、场景或示例对话的角色卡");
+        if (message === "UNSUPPORTED_IMPORT_FORMAT") throw new Error("不支持该文件的格式，请确认它是本应用导出的", { cause: err });
+        if (message === "CHAR_BLOCKED_FIELDS") throw new Error("不支持包含开场白、场景或示例对话的角色卡", { cause: err });
         throw err;
     }
 }

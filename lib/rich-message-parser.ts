@@ -47,6 +47,7 @@ export interface ParsedAIResponse {
 // 不能直接从内容里删除这些字符——U+200D 是组合 emoji 的连接符，U+200C 在部分
 // 文字里有语义——所以只在"判空"时把它们视同空白。
 const INVISIBLE_OR_WHITESPACE_ONLY_RE = new RegExp(
+    // eslint-disable-next-line no-misleading-character-class -- U+034F 在这里是要单独匹配的不可见字符，不是用来组合前一个字符的
     "^[\\s\\u00AD\\u034F\\u180E\\u200B-\\u200F\\u2060-\\u2064\\uFEFF]*$",
 );
 

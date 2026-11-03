@@ -107,11 +107,11 @@ export default function ReadingApp({ onClose }: Props) {
     };
 
     const appearanceStyle = {
-        ["--reading-font-family" as "--reading-font-family"]: resolveReadingFontFamily(appearance.fontFamily, customFontFamily),
-        ["--reading-font-size" as "--reading-font-size"]: `${appearance.fontSize}px`,
-        ["--reading-text-color" as "--reading-text-color"]: appearance.textColor,
-        ["--reading-line-height" as "--reading-line-height"]: String(appearance.lineHeight),
-        ["--reading-bg-image" as "--reading-bg-image"]: backgroundUrl ? `url("${backgroundUrl}")` : "none",
+        ["--reading-font-family" as const]: resolveReadingFontFamily(appearance.fontFamily, customFontFamily),
+        ["--reading-font-size" as const]: `${appearance.fontSize}px`,
+        ["--reading-text-color" as const]: appearance.textColor,
+        ["--reading-line-height" as const]: String(appearance.lineHeight),
+        ["--reading-bg-image" as const]: backgroundUrl ? `url("${backgroundUrl}")` : "none",
     } as CSSProperties;
     const hiddenViewerStyle = {
         position: "absolute",

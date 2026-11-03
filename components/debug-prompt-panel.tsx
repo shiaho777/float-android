@@ -13,7 +13,7 @@ import {
     type MomentsPreviewResult,
 } from "@/lib/moments-engine";
 import { previewCalendarPromptPayload } from "@/lib/calendar-engine";
-import { CHAT_APP_SETTINGS_UPDATED_EVENT, loadChatAppSettings, loadChatContacts, loadChatMessages, loadChatSessions, type ChatSession } from "@/lib/chat-storage";
+import { loadChatContacts, loadChatMessages, loadChatSessions, type ChatSession } from "@/lib/chat-storage";
 import { loadCharacters } from "@/lib/character-storage";
 import { getAllPosts } from "@/lib/moments-storage";
 import type { LLMMessage } from "@/lib/llm-prompt-assembler";
@@ -96,7 +96,6 @@ export function DebugPromptPanel() {
     const chatState = useSyncExternalStore(subscribeDebugChatState, getDebugChatState, () => null);
     const promptSnapshot = useSyncExternalStore(subscribeDebugPromptSnapshot, getDebugPromptSnapshot, () => null);
     const [collapsed, setCollapsed] = useState(true);
-    const [enabled, setEnabled] = useState(false);
     const [mode, setMode] = useState<DebugMode>("chat");
     const [floatingPosition, setFloatingPosition] = useState<FloatingPosition | null>(null);
     const [draggingFloatingButton, setDraggingFloatingButton] = useState(false);
@@ -188,7 +187,7 @@ export function DebugPromptPanel() {
                 label: charNameById.get(session.contactId) || session.alias || session.contactId,
             };
         });
-    }, [enabled, chatState?.session?.id]);
+    }, [chatState?.session?.id]);
     const activeChatSession = chatSessionOptions.find(option => option.session.id === selectedChatSessionId)?.session
         ?? chatState?.session
         ?? null;
@@ -223,20 +222,6 @@ export function DebugPromptPanel() {
             ?? "";
         if (nextSessionId !== selectedChatSessionId) setSelectedChatSessionId(nextSessionId);
     }, [chatSessionOptions, chatState?.session?.id, selectedChatSessionId]);
-
-    useEffect(() => {
-        const syncEnabled = (event?: Event) => {
-            const detail = (event as CustomEvent | undefined)?.detail;
-            const nextEnabled = typeof detail?.promptViewerEnabled === "boolean"
-                ? detail.promptViewerEnabled
-                : loadChatAppSettings().promptViewerEnabled === true;
-            setEnabled(nextEnabled);
-            if (!nextEnabled) setCollapsed(true);
-        };
-        syncEnabled();
-        window.addEventListener(CHAT_APP_SETTINGS_UPDATED_EVENT, syncEnabled);
-        return () => window.removeEventListener(CHAT_APP_SETTINGS_UPDATED_EVENT, syncEnabled);
-    }, []);
 
     useEffect(() => {
         if (mode !== "chat" || !activeChatSnapshot) return;
@@ -655,12 +640,12 @@ export function DebugPromptPanel() {
     const readingBookOptions = useMemo(() => {
         if (typeof window === "undefined") return [];
         return loadBooks().map(book => ({ id: book.id, title: book.title }));
-    }, [enabled, extraAppId, readingStorageVersion]);
+    }, [extraAppId, readingStorageVersion]);
 
     const adventureWorldOptions = useMemo(() => {
         if (typeof window === "undefined") return [] as MapWorld[];
         return loadMapWorlds().filter(world => world.status !== "generating");
-    }, [enabled, extraAppId, adventureStorageVersion]);
+    }, [extraAppId, adventureStorageVersion]);
     const selectedAdventureWorld = adventureWorldOptions.find(world => world.id === adventureWorldId) ?? null;
     const selectedAdventureSave: GameSave | null = useMemo(
         () => selectedAdventureWorld ? getLatestSave(selectedAdventureWorld.id) : null,
@@ -735,8 +720,6 @@ export function DebugPromptPanel() {
         if (adventureWorldId || adventureWorldOptions.length === 0) return;
         setAdventureWorldId(adventureWorldOptions[0].id);
     }, [adventureWorldId, adventureWorldOptions]);
-
-    if (!enabled) return null;
 
     if (collapsed) {
         return (

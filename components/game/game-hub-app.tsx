@@ -1492,7 +1492,7 @@ export function GameHubApp({ onClose, autoOpenLocalId }: { onClose: () => void; 
       showNotice("info", "内置游戏暂不支持点赞");
       return;
     }
-    const nextLiked = !Boolean(template.likedByMe || state.likedGameIds.includes(template.id));
+    const nextLiked = !(template.likedByMe || state.likedGameIds.includes(template.id));
     const nextCount = Math.max(0, template.likeCount + (nextLiked ? 1 : -1));
     const nextLikedIds = nextLiked
       ? [...new Set([...state.likedGameIds, template.id])]

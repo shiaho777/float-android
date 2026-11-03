@@ -544,7 +544,6 @@ class ChatPluginRuntime {
                     },
                 },
                 log: (...args) => {
-                    // eslint-disable-next-line no-console
                     console.log(`[chat-plugin:${pluginId}]`, ...args);
                     recordChatPluginLog({
                         pluginId,

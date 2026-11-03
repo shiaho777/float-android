@@ -111,7 +111,7 @@ window.__ready = true;
   for (const url of urls) {
     const httpUrl = `${base}/public${url}`;
     try {
-      const dataUrl = await page.evaluate((u) => window.__render(u), httpUrl);
+      const dataUrl = await page.evaluate((u) => globalThis.__render(u), httpUrl);
       const png = Buffer.from(dataUrl.split(",")[1], "base64");
       const out = path.join(THUMB_DIR, presetThumbName(url));
       await sharp(png).webp({ quality: 82 }).toFile(out);

@@ -392,7 +392,7 @@ export function loadVnProjectionEntries(
 
 // ── Global VN Config (key-value in IndexedDB) ──
 
-let _configCache: Record<string, string> = {};
+const _configCache: Record<string, string> = {};
 let _configHydrated = false;
 
 async function hydrateConfig(): Promise<void> {

@@ -75,7 +75,7 @@ export async function initChatDb(): Promise<{
             }
             throw new Error(`[ChatDB] 无法读取本地聊天数据库（${
                 err instanceof Error ? err.message : String(err)
-            }），已保持未水合状态以避免覆盖真实数据`);
+            }），已保持未水合状态以避免覆盖真实数据`, { cause: err });
         }
 
         if (indexedDbHasData) {

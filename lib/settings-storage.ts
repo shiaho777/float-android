@@ -792,7 +792,7 @@ function normalizeImageGenerationSettings(settings: Partial<ImageGenerationSetti
     const activeOpenAiPreset = openaiPresets.find(preset => preset.id === activeOpenAiPresetId) || openaiPresets[0];
 
     const rawNai = settings?.novelai;
-    let naiPresets = Array.isArray(rawNai?.presets) && rawNai.presets.length > 0
+    const naiPresets = Array.isArray(rawNai?.presets) && rawNai.presets.length > 0
         ? rawNai.presets.map((p, idx) => normalizeNovelAiPreset(p, idx))
         : [DEFAULT_NOVELAI_PRESET];
     let activePresetId = typeof rawNai?.activePresetId === "string" ? rawNai.activePresetId : naiPresets[0].id;

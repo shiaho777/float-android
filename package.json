@@ -9,7 +9,8 @@
     "build:apk": "npm run build && cap sync android",
     "start": "vite preview --port 3001",
     "check:sdk": "node scripts/check-custom-app-sdk-consistency.mjs",
-    "build:glass-icons": "node scripts/build-glass-icons.mjs"
+    "build:glass-icons": "node scripts/build-glass-icons.mjs",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@capacitor/android": "^7.6.9",
@@ -46,6 +47,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^7.6.9",
+    "@eslint/js": "^10.0.1",
     "@gltf-transform/core": "^4.3.0",
     "@gltf-transform/extensions": "^4.3.0",
     "@tailwindcss/postcss": "^4.2.1",
@@ -57,8 +59,12 @@
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
     "@vitejs/plugin-react": "^4.7.0",
+    "eslint": "^10.14.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
     "tailwindcss": "^4.2.1",
     "typescript": "^5.7.2",
+    "typescript-eslint": "^8.72.1",
     "vite": "^6.4.3"
   }
 }
