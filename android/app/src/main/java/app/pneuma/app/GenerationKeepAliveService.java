@@ -1,4 +1,4 @@
-package app.floatphone.app;
+package app.pneuma.app;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -46,7 +46,7 @@ public class GenerationKeepAliveService extends Service {
         try {
             PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
             if (pm != null) {
-                wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "float:generation");
+                wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "pneuma:generation");
                 wakeLock.setReferenceCounted(false);
             }
             WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
@@ -54,7 +54,7 @@ public class GenerationKeepAliveService extends Service {
                 int mode = Build.VERSION.SDK_INT >= 29
                         ? WifiManager.WIFI_MODE_FULL_LOW_LATENCY
                         : WifiManager.WIFI_MODE_FULL;
-                wifiLock = wm.createWifiLock(mode, "float:generation");
+                wifiLock = wm.createWifiLock(mode, "pneuma:generation");
                 wifiLock.setReferenceCounted(false);
             }
         } catch (RuntimeException error) {

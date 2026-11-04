@@ -72,7 +72,7 @@ export default function WorldBuilder() {
     // 原生端筑境是同窗口导航进来的，返回也只能整页重载（IDB 连接使 bfcache 不生效）。
     // 标记让主界面跳过一次引导动画，回来直接落桌面。
     if (Capacitor.isNativePlatform()) {
-      try { sessionStorage.setItem("float_skip_splash_once", "1"); } catch { /* ignore */ }
+      try { sessionStorage.setItem("pneuma_skip_splash_once", "1"); } catch { /* ignore */ }
       window.location.replace("/");
       return;
     }

@@ -7,8 +7,8 @@
 <p align="center">一部会呼吸的 AI 虚拟手机。</p>
 
 <p align="center">
-  <a href="https://github.com/shiaho777/float-android/releases/latest"><img src="https://img.shields.io/github/v/release/shiaho777/float-android" alt="Release" /></a>
-  <a href="https://github.com/shiaho777/float-android"><img src="https://img.shields.io/badge/platform-Android%20%7C%20Web-green" alt="Platform" /></a>
+  <a href="https://github.com/shiaho777/pneuma-android/releases/latest"><img src="https://img.shields.io/github/v/release/shiaho777/pneuma-android" alt="Release" /></a>
+  <a href="https://github.com/shiaho777/pneuma-android"><img src="https://img.shields.io/badge/platform-Android%20%7C%20Web-green" alt="Platform" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0--only-blue" alt="License" /></a>
 </p>
 
@@ -20,7 +20,7 @@
 
 Pneuma 不再沿用以前那套"Release 里不放安装包、请自己 Fork 再构建"的规矩。
 
-- **直接发安装包。** 每个版本都在 [Releases](https://github.com/shiaho777/float-android/releases) 附带 APK，下载就能装。应用内「设置 → 关于与声明」可以检查并下载新版本。
+- **直接发安装包。** 每个版本都在 [Releases](https://github.com/shiaho777/pneuma-android/releases) 附带 APK，下载就能装。应用内「设置 → 关于与声明」可以检查并下载新版本。
 - **独立演进。** Pneuma 会按自己的方向大改：界面、架构、玩法都可能和来源项目分道扬镳，不承诺与上游保持同步或兼容。
 - **自由，而不是无主。** "自由"指的是自由软件的自由：任何人都可以使用、研究、修改和再分发 Pneuma。这份自由由 AGPL-3.0 保障，也同样约束我们自己，见下文 [许可证](#许可证)。
 
@@ -45,9 +45,9 @@ Pneuma 不再沿用以前那套"Release 里不放安装包、请自己 Fork 再�
 
 ### Android
 
-到 [Releases](https://github.com/shiaho777/float-android/releases/latest) 下载 `pneuma-android-<版本号>.apk`，传到手机安装。之后的新版本可以在应用内「设置 → 关于与声明 → 检查更新」直接下载。
+到 [Releases](https://github.com/shiaho777/pneuma-android/releases/latest) 下载 `pneuma-android-<版本号>.apk`，传到手机安装。之后的新版本可以在应用内「设置 → 关于与声明 → 检查更新」直接下载。
 
-从旧的 Float 安装包升级：包名没有变，签名相同的话可以直接覆盖安装，数据保留。如果系统提示签名冲突，先在旧版里导出存档，卸载后安装 Pneuma，再导入。
+从旧的 Float 迁移：Pneuma 的包名是 `app.pneuma.app`，会作为一个新应用装上，不会覆盖 Float，两者的数据也互不相通。先在 Float 的「设置 → 数据管理」里导出存档，装好 Pneuma 后再导入。确认无误后再卸载 Float。
 
 ### 网页
 

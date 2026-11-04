@@ -1,4 +1,4 @@
-package app.floatphone.app;
+package app.pneuma.app;
 
 import android.content.Intent;
 import android.content.pm.PackageManager;

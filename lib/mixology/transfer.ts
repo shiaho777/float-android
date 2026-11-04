@@ -13,11 +13,14 @@ import {
 } from "./types";
 import { getMixMaterial, isMixBuiltinId, loadMixRecipes, MIX_CABINET_UPDATED_EVENT, saveMixMaterial, saveMixRecipe } from "./storage";
 
-const FILE_MARK = "float-mixology-material";
+const FILE_MARK = "pneuma-mixology-material";
+/** Float 时代导出的文件标记，导入时继续认 */
+const LEGACY_FILE_MARK = "float-mixology-material";
 const FILE_VERSION = 1;
 
 /** PNG 卡的文本块关键字——自有格式，故意与酒馆卡（chara/ccv3）不同 */
-const PNG_KEYWORD = "float-mixology-card";
+const PNG_KEYWORD = "pneuma-mixology-card";
+const LEGACY_PNG_KEYWORD = "float-mixology-card";
 /** 第三方角色卡格式的关键字（SillyTavern V2/V3 等），一律拒收 */
 const THIRD_PARTY_PNG_KEYWORDS = ["chara", "ccv3"];
 
@@ -35,7 +38,7 @@ function safeFileName(name: string): string {
 
 
 // ── PNG 卡：自有格式的图内嵌数据 ──────────────────────
-// 数据以 base64 JSON 写进 PNG 的 tEXt 块（关键字 float-mixology-card），
+// 数据以 base64 JSON 写进 PNG 的 tEXt 块（关键字 pneuma-mixology-card，旧卡为 float-mixology-card），
 // 图即是卡。解析时若发现酒馆系关键字（chara/ccv3）直接报错拒收。
 
 const PNG_SIG = [137, 80, 78, 71, 13, 10, 26, 10];
@@ -127,7 +130,7 @@ export function parseMixMaterialsFromPng(buffer: ArrayBuffer): MixMaterial[] {
     const u8 = new Uint8Array(buffer);
     if (!isPng(u8)) throw new Error("这不是一个有效的 PNG 文件。");
     const chunks = readPngTextChunks(u8);
-    const ours = chunks.get(PNG_KEYWORD);
+    const ours = chunks.get(PNG_KEYWORD) ?? chunks.get(LEGACY_PNG_KEYWORD);
     if (ours) {
         let json: string;
         try {
@@ -266,7 +269,7 @@ export function parseMixMaterialsFromJson(text: string): MixMaterial[] {
         }
         if (!value || typeof value !== "object") return;
         const record = value as Record<string, unknown>;
-        if (record.mark === FILE_MARK && record.material) {
+        if ((record.mark === FILE_MARK || record.mark === LEGACY_FILE_MARK) && record.material) {
             collect(record.material);
             return;
         }
@@ -337,7 +340,8 @@ export function parseMixMaterialsFromJson(text: string): MixMaterial[] {
 // 材料文件之外的第二种文件：配方本体 + 它引用的全部非官方材料。
 // 材料保留原 id——槽位靠 id 引用材料，改 id 就断链；官方出厂件导入端自带，只留引用。
 
-const RECIPE_FILE_MARK = "float-mixology-recipe";
+const RECIPE_FILE_MARK = "pneuma-mixology-recipe";
+const LEGACY_RECIPE_FILE_MARK = "float-mixology-recipe";
 
 type MixRecipeTransferFile = {
     mark: typeof RECIPE_FILE_MARK;
@@ -373,7 +377,7 @@ export function parseMixRecipeFile(text: string): { recipe: MixRecipe; materials
     }
     if (!parsed || typeof parsed !== "object") return null;
     const record = parsed as Record<string, unknown>;
-    if (record.mark !== RECIPE_FILE_MARK) return null;
+    if (record.mark !== RECIPE_FILE_MARK && record.mark !== LEGACY_RECIPE_FILE_MARK) return null;
     const rawRecipe = record.recipe as Record<string, unknown> | undefined;
     if (!rawRecipe || typeof rawRecipe !== "object") throw new Error("配方文件缺少配方本体。");
     const name = typeof rawRecipe.name === "string" ? rawRecipe.name.trim() : "";

@@ -260,8 +260,8 @@ export function MainApp() {
         .then(m => m.ensureMemorySchemaMigrated())
         .catch(error => console.warn("[MainApp] memory schema migration failed:", error));
       // 筑境/子页返回主界面时跳过一次引导动画（sessionStorage 旗标，重启自动清除）
-      const skipSplash = sessionStorage.getItem("float_skip_splash_once") === "1";
-      if (skipSplash) sessionStorage.removeItem("float_skip_splash_once");
+      const skipSplash = sessionStorage.getItem("pneuma_skip_splash_once") === "1";
+      if (skipSplash) sessionStorage.removeItem("pneuma_skip_splash_once");
       if (skipSplash || hasPendingMcpOAuthCallback()) {
         setSplashDismissed(true);
       }

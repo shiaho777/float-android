@@ -77,7 +77,7 @@ export function AboutDeclaration() {
                     <Github size={22} className="shrink-0 text-[var(--c-icon-active)]" />
                     <div className="flex flex-col flex-1 min-w-0 text-left">
                         <span className="menu-label">开源仓库</span>
-                        <span className="menu-desc ts-12 !mt-0 truncate">shiaho777 / float-android</span>
+                        <span className="menu-desc ts-12 !mt-0 truncate">shiaho777 / pneuma-android</span>
                     </div>
                     <ExternalLink size={15} className="shrink-0 text-[var(--c-icon)]" />
                 </button>

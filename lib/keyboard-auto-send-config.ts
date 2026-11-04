@@ -4,7 +4,7 @@
 //
 // 开关和等待秒数都按聊天窗口（sessionId）各存各的：设置页本来就是单个聊天的，
 // 在哪拨开就只对哪个聊天生效，「这个角色开、那个角色不开」天然成立。
-const CONFIG_KEY = "float_keyboard_auto_send_v1";
+const CONFIG_KEY = "pneuma_keyboard_auto_send_v1";
 
 export interface KeyboardAutoSendConfig {
     /** 按会话的开关。缺省 = 关（不改变任何存量行为）。key = sessionId。 */

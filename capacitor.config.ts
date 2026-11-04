@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: "app.floatphone.app",
+  appId: "app.pneuma.app",
   appName: "Pneuma",
   webDir: "out",
   // https scheme:让 WebView 里的请求保持 secure context(IndexedDB/ crypto / SW 行为与网页版一致),

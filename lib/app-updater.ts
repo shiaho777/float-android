@@ -9,12 +9,12 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
 import type { PluginListenerHandle } from "@capacitor/core";
 
-export const REPO_URL = "https://github.com/shiaho777/float-android";
+export const REPO_URL = "https://github.com/shiaho777/pneuma-android";
 export const LICENSE_URL = `${REPO_URL}/blob/main/LICENSE`;
 export const LICENSE_NAME = "AGPL-3.0-only";
 
-const RELEASES_API = "https://api.github.com/repos/shiaho777/float-android/releases";
-const STORAGE_KEY = "float_update_dl_v1";
+const RELEASES_API = "https://api.github.com/repos/shiaho777/pneuma-android/releases";
+const STORAGE_KEY = "pneuma_update_dl_v1";
 const FALLBACK_VERSION = "1.0.2";
 
 export interface ReleaseInfo {

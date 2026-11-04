@@ -21,6 +21,7 @@ import {
   type MediaResolver,
 } from "./serializers";
 import { kvEntries, kvGet, kvRemove, kvSetAsync } from "../kv-db";
+import { renameLegacyStorageKey } from "../legacy-brand-migration";
 import { nativeMediaClear, nativeMediaList, nativeMediaReadBlob } from "../native-media";
 
 type SourceStats = {
@@ -621,13 +622,14 @@ export async function importSource(
     for (const record of payload.records) {
       // 单条失败（配额满、单条数据损坏）只损失这一条，剩下的照常导入。
       try {
-        const exists = window.localStorage.getItem(record.key) !== null;
+        const key = renameLegacyStorageKey(record.key);
+        const exists = window.localStorage.getItem(key) !== null;
         if (exists && !overwrite) {
           result.skipped += 1;
           continue;
         }
         const value = await deserializeStorageString(record.value, resolver);
-        window.localStorage.setItem(record.key, value);
+        window.localStorage.setItem(key, value);
         if (exists) result.overwritten += 1;
         else result.added += 1;
       } catch (error) {

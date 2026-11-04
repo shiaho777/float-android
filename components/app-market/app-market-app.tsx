@@ -725,14 +725,14 @@ export function AppMarketApp({ onClose, onOpenCustomApp, onInstallToDesktop, onN
         <input
           ref={fileRef}
           type="file"
-          accept=".zip,.html,.htm,.floatapp,application/zip,application/x-zip-compressed,text/html,application/octet-stream"
+          accept=".zip,.html,.htm,.pneumaapp,.floatapp,application/zip,application/x-zip-compressed,text/html,application/octet-stream"
           className="app-market-hidden-input"
           onChange={event => void handleFile(event.target.files?.[0])}
         />
         <input
           ref={repackInputRef}
           type="file"
-          accept=".zip,.html,.htm,.floatapp,application/zip,application/x-zip-compressed,text/html,application/octet-stream"
+          accept=".zip,.html,.htm,.pneumaapp,.floatapp,application/zip,application/x-zip-compressed,text/html,application/octet-stream"
           className="app-market-hidden-input"
           onChange={event => {
             const file = event.target.files?.[0];
