@@ -13,7 +13,7 @@ Instructions for coding agents working in this repository.
 
 | Path | Role |
 |------|------|
-| `entries/` | Vite multi-page entry points: `main.tsx` (phone), `world-builder.tsx` (3D world builder), `characters.tsx` (standalone character page). Each maps to an HTML file at repo root. |
+| `entries/` | Vite multi-page entry points: `main.tsx` (phone), `characters.tsx` (standalone character page). Each maps to an HTML file at repo root. |
 | `components/` | React UI tree — chat, desktop, settings, check-phone simulated apps, findmy, moments, games, etc. (~6.8 MB, dense codebase; read neighbors before adding). |
 | `lib/` | Business logic layer (~268 modules): Dexie/IndexedDB stores, LLM adapter, prompt assembler, engines (chat/group-chat/memory/presence/dwelling/checkphone), importer, backup. |
 | `styles/components.css` | Single design-token CSS file shared by all components (`dl-*`, `ap-*`, `fi-*`, `cp-*` families). Reuse existing classes before inventing new ones. |
@@ -21,7 +21,6 @@ Instructions for coding agents working in this repository.
 | `ios/` | Capacitor iOS project (Xcode). No custom native plugins yet — Android-only plugins degrade via the `lib/` wrapper fallbacks (see the dual-platform contract). |
 | `custom-apps/` | Built-in user apps installed through the Custom App SDK. |
 | `app-store-apps/` | Extra apps for the in-app market. |
-| `world-builder/` | 3D world builder page (React Three Fiber). |
 | `characters/` | Standalone character management page. |
 | `docs/` | Specs and plans (docs/specs/, docs/plans/) plus README screenshots in `docs/screenshots/`. |
 
@@ -31,7 +30,7 @@ User-facing product doc: `README.md` (Chinese-first). The upstream project this 
 
 ```text
 Vite multi-page build (vite.config.ts)
-  index.html / world-builder/index.html / characters/index.html
+  index.html / characters/index.html
   → entries/*.tsx → components/* + lib/*
   → out/ → capacitor.config.ts (webDir: out, scheme: https)
   → npx cap sync android → Android WebView shell (MainActivity)

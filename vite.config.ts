@@ -5,7 +5,6 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
-const nodeEmptyShim = path.join(projectRoot, "lib/shims/node-empty.ts");
 
 // NEXT_PUBLIC_* 在浏览器代码里以 process.env 引用，构建时静态替换（与 Next 行为一致）。
 const PUBLIC_ENV_KEYS = [
@@ -27,10 +26,6 @@ export default defineConfig(({ mode }) => {
         resolve: {
             alias: {
                 "@": projectRoot,
-                // @gltf-transform 的 dist 引用 node: 内置模块；浏览器侧只用 WebIO，置空即可。
-                "node:fs": nodeEmptyShim,
-                "node:path": nodeEmptyShim,
-                "node:module": nodeEmptyShim,
             },
         },
         define,
@@ -42,7 +37,6 @@ export default defineConfig(({ mode }) => {
             rollupOptions: {
                 input: {
                     main: path.join(projectRoot, "index.html"),
-                    "world-builder": path.join(projectRoot, "world-builder/index.html"),
                     characters: path.join(projectRoot, "characters/index.html"),
                 },
                 output: {
@@ -54,7 +48,6 @@ export default defineConfig(({ mode }) => {
                         if (!id.includes("node_modules")) return;
                         if (/\/react-dom\/|\/react\//.test(id)) return "vendor-react";
                         if (id.includes("dexie")) return "vendor-dexie";
-                        if (/\/(three|three-stdlib|@react-three|postprocessing|@postprocessing|camera-controls|maath|meshline|detect-gpu|its-fine|react-reconciler|zustand|suspend-react|webgl-ccd|three-mesh-bvh)\//.test(id)) return "vendor-three";
                         if (/(react-markdown|marked|remark-|rehype-|micromark|mdast|hast|unified|dompurify|vfile|decode-named|trim-lines|property-information|space-separated|comma-separated|html-url-attributes|devlop)/.test(id)) return "vendor-markdown";
                         if (id.includes("lucide-react") || id.includes("@phosphor") || id.includes("@mdi") || id.includes("@heroicons")) return "vendor-icons";
                         if (id.includes("jszip")) return "vendor-jszip";

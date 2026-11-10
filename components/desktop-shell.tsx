@@ -2240,68 +2240,6 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
     );
   };
 
-  function openWorldBuilder(path: string): void {
-    // 静态多页产物里页面是 目录/index.html；Capacitor 的 WebViewAssetLoader
-    // 不做目录索引回退，直接请求 index.html 最稳。
-    const pagePath = /index\.html$/.test(path) ? path : path.replace(/\/?$/, "/index.html");
-    const targetUrl = new URL(pagePath, window.location.origin).toString();
-    // 原生端 window.open 会被 Capacitor 翻译成系统浏览器 Intent，
-    // https://localhost 页面在浏览器里打不开——直接同窗口导航，返回键走 location.replace("/")。
-    if (isNativeApp()) {
-      window.location.assign(targetUrl);
-      return;
-    }
-    const escapedTargetUrl = JSON.stringify(targetUrl);
-    const bootHtml = `<!doctype html>
-<html lang="zh-CN">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#121110" />
-<title>筑境</title>
-<style>
-*{box-sizing:border-box}
-html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgba(255,248,232,.92);color-scheme:dark;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden}
-.wb-initial-boot{position:fixed;top:0;right:0;bottom:0;left:0;z-index:2147483647;isolation:isolate;width:100vw;height:100vh;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:calc(env(safe-area-inset-top,0px) + 18px) 22px calc(env(safe-area-inset-bottom,0px) + 22px);background:#121110;color:rgba(255,248,232,.92);overflow:hidden;pointer-events:auto}
-.wb-initial-boot:before{content:"";position:fixed;top:-2px;right:-2px;bottom:-2px;left:-2px;opacity:.18;background-color:#121110;background-image:linear-gradient(rgba(245,198,104,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(98,207,214,.1) 1px,transparent 1px);background-size:34px 34px;mask-image:linear-gradient(to bottom,transparent,black 20%,black 80%,transparent);pointer-events:none}
-.wb-initial-center{position:relative;z-index:1;width:min(300px,100%);display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center}
-.wb-initial-mark{width:72px;height:72px;display:grid;place-items:center;border:1px solid rgba(245,198,104,.32);border-radius:18px;background:rgba(255,255,255,.07);color:#f5c668}
-.wb-initial-mark span{width:28px;height:28px;border:2px solid rgba(245,198,104,.26);border-top-color:#f5c668;border-radius:50%;animation:wbInitialSpin .9s linear infinite}
-.wb-initial-copy{display:flex;flex-direction:column;gap:7px;align-items:center}
-.wb-initial-copy span{color:#f5c668;font-size: calc(11px*var(--app-text-scale,1));font-weight:700;letter-spacing:.08em}
-.wb-initial-copy h1{margin:0;color:rgba(255,248,232,.96);font-size: calc(21px*var(--app-text-scale,1));line-height:1.3;font-weight:750;letter-spacing:.06em}
-.wb-initial-copy p{margin:0;color:rgba(255,248,232,.58);font-size: calc(13px*var(--app-text-scale,1));line-height:1.5}
-.wb-initial-back{appearance:none;-webkit-appearance:none;min-height:44px;padding:0 18px;border:1px solid rgba(255,255,255,.12);border-radius:999px;background:rgba(255,255,255,.07);color:rgba(255,248,232,.76);font:inherit;font-size: calc(13px*var(--app-text-scale,1));font-weight:600;cursor:pointer}
-@keyframes wbInitialSpin{to{transform:rotate(360deg)}}@media (prefers-reduced-motion:reduce){.wb-initial-mark span{animation:none}}
-</style>
-</head>
-<body>
-<main class="wb-initial-boot" role="status" aria-live="polite">
-  <div class="wb-initial-center">
-    <div class="wb-initial-mark" aria-hidden="true"><span></span></div>
-    <div class="wb-initial-copy">
-      <span>World Builder</span>
-      <h1>正在搭建筑境</h1>
-      <p>场景出现后会自动进入。</p>
-    </div>
-    <button class="wb-initial-back" type="button" onclick="if(window.opener&&!window.opener.closed){window.opener.focus();window.close();}else{window.location.replace('/')}">返回小手机</button>
-  </div>
-</main>
-<script>setTimeout(function(){window.location.replace(${escapedTargetUrl});},80);</script>
-</body>
-</html>`;
-    const popup = window.open("", "_blank");
-
-    if (!popup) {
-      window.location.href = targetUrl;
-      return;
-    }
-
-    popup.document.open();
-    popup.document.write(bootHtml);
-    popup.document.close();
-  }
-
   function getFreshInstalledCustomApp(appId: string): InstalledCustomApp | null {
     const installed = loadInstalledCustomApps();
     if (installed.length !== customApps.length || installed.some((app, index) => app.id !== customApps[index]?.id || app.version !== customApps[index]?.version)) {
@@ -2339,11 +2277,6 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
       return;
     }
     const builtinIconId = iconId as IconId;
-    const meta = ICONS[builtinIconId];
-    if (meta?.path && meta.id === "worldbuilder") {
-      openWorldBuilder(meta.path);
-      return;
-    }
     if (builtinIconId === "resources") setResourcesInitialPage("main");
     if (builtinIconId === "chat") setChatInitSessionId(null);
     setActiveApp(builtinIconId);
