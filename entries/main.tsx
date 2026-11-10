@@ -11,7 +11,6 @@ import { ChatReasoningVisibilityController } from "@/components/chat-reasoning-v
 import { PWAManifestInjector } from "@/components/pwa-manifest-injector";
 import { MainApp } from "@/components/main-app";
 
-import "../styles/fonts.css";
 import "../app/globals.css";
 
 // Float 时代的 localStorage 键搬到 Pneuma 键名，须在任何模块读取前完成

@@ -8,14 +8,9 @@
 # 纯静态导出：publish 直接指向 out/，无需 Next.js 运行时插件。
 
 
-# 字体/模型/图片是不带指纹的静态资源，体积大（中文字体 7~24MB、3D 模型 10MB+）。
+# 模型/图片是不带指纹的静态资源，体积大（3D 模型 10MB+）。
 # 设为一年 immutable，浏览器命中后回访零带宽。更新这些文件时请改文件名（加版本后缀），
 # 否则旧客户端会一直用缓存。
-[[headers]]
-  for = "/fonts/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
 [[headers]]
   for = "/models/*"
   [headers.values]

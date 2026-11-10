@@ -19,28 +19,13 @@ including presets, regex-based processing, and world/lore book concepts.
 SillyTavern: https://github.com/SillyTavern/SillyTavern
 SillyTavern is licensed under AGPL-3.0.
 
-Bundled fonts (public/fonts/):
+Bundled fonts:
 
-- ximai.woff2: 字制区喜脉喜欢体 (FontQu Smile), © 探火（深圳）品牌策划有限公司,
-  designer 肖维野纳. Licensed under the SIL Open Font License 1.1.
-- xiaozhitiao.woff2: 鸿雷小纸条青春体, © 鸿雷字记 (HongLei Design).
-  Released as a free-for-commercial-use font (via MaoKen / 猫啃网).
-- huiwen.woff2, notewall/huiwen-upload.woff2: 汇文明朝体, a free and open font.
-- notewall/chen-yuluoyan-thin.woff2: 辰宇落雁体 (Chen Yu Luo Yan), licensed
-  under the SIL Open Font License 1.1.
-- 字体/MISANS-*.woff2: MiSans, © Xiaomi. Free for commercial use and
-  redistribution under the MiSans font license.
-- special-elite.woff2: Special Elite, © Brian J. Bonislawsky DBA Astigmatic
-  (AOETI). Licensed under the Apache License, Version 2.0 (via Google Fonts).
-- splash/, interview/, game-hall/ fonts (Inter, JetBrains Mono, Instrument
-  Serif, Major Mono Display, Bodoni Moda, Cinzel, EB Garamond, Long Cang,
-  Noto Serif SC, Press Start 2P, Caveat, Fredoka, Zen Maru Gothic): from
-  Google Fonts, licensed under the SIL Open Font License 1.1 (Inter,
-  JetBrains Mono under OFL 1.1 as published by their projects).
-
-In-app font picker ids "huangyou" / "shangshangqian" are legacy identifiers
-kept for stored-data compatibility; the actual bundled fonts are the
-commercially-licensed 喜脉喜欢体 and 鸿雷小纸条青春体 listed above.
+Pneuma ships no font files. All text renders with the system font stack of the
+device, and the app's CSS falls back through platform typefaces. This keeps the
+APK small; the display fonts used by earlier releases (MiSans, 汇文明朝体,
+Noto Serif SC, 龙藏, 喜脉喜欢体, 鸿雷小纸条青春体, 辰宇落雁体, Special Elite and the
+Google Fonts families) are no longer redistributed here.
 
 Bundled artwork:
 

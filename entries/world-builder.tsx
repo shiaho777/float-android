@@ -7,7 +7,6 @@ import WorldBuilder from "@/components/world-builder/WorldBuilder";
 import { AndroidFullscreen } from "@/components/android-fullscreen";
 import { installShellLayoutMode } from "@/lib/shell-layout-mode";
 
-import "../styles/fonts.css";
 import "../app/globals.css";
 
 installShellLayoutMode();
