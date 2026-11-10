@@ -14,7 +14,7 @@
 
 ### 性能与体积
 
-- **APK 61.8 MB → 38.4 MB（-37.9%）**：中文展示字体裁到 GB2312 + ASCII + 中文标点（`npm run build:fonts`），字体总量 46.3 MB → 22.7 MB；裁掉的生僻字逐字回退到系统字体，不会出现豆腐块。
+- **APK 61.8 MB → 15.6 MB（-74.8%）**：不再随包分发字体。46.3 MB 的中文展示字体（MiSans、汇文明朝、Noto Serif SC、龙藏、喜脉喜欢体、鸿雷小纸条、辰宇落雁体、Zen Maru 等）与 1.1 MB 拉丁字体全部移除，`styles/fonts.css`、各处的 `@font-face`、`npm run build:fonts` 一并删除，文字统一走系统字体栈；NOTICE 的字体授权段落同步移除。
 - **首屏 JS 601 KB → 445 KB（gzip，-26%）**：主包 1,689 KB → 998 KB。
   - `desktop-shell` 不再静态引入 `tool-executor`、`custom-app-host-api`，改为用时再 `import()`。
   - 后台服务（追发 / 朋友圈 / 日记定时器）改为存储水合后按需加载，`chat-engine`、`llm-prompt-assembler`、`tool-executor`、`moments-engine`、`game-builtin-html` 全部移出启动包。

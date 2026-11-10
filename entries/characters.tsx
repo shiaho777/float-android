@@ -4,7 +4,6 @@ import { createRoot } from "react-dom/client";
 
 import { installShellLayoutMode } from "@/lib/shell-layout-mode";
 
-import "../styles/fonts.css";
 import "../app/globals.css";
 
 installShellLayoutMode();

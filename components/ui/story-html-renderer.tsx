@@ -447,7 +447,7 @@ function HtmlPageSegment({ html, onOptionSelect, htmlPageMode, serifIframeFallba
         // 默认字体兜底：iframe 是独立文档，继承不到剧情页的宋体（--story-font），
         // UA 默认是无衬线（iOS 苹方）。把宋体默认值注入到文档最前面——生成页
         // 自己声明的 font-family 在后面，仍会覆盖这里，只兜底不强制。
-        const fontFallback = `<style>@font-face{font-family:"Noto Serif SC";src:url("/fonts/interview/noto-serif-sc.woff2") format("woff2");font-weight:300 900;font-display:swap}body{font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",Georgia,serif}</style>`;
+        const fontFallback = `<style>body{font-family:"Songti SC","Source Han Serif SC","Noto Serif SC","STSong",Georgia,serif}</style>`;
         let h = html;
         // Convert basic markdown inside hidden data divs
         h = h.replace(
