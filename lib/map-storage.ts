@@ -3,7 +3,7 @@
 
 import Dexie from "dexie";
 import type { MapWorld, GameSave, CharacterAgent, StoryDirector, CharStats } from "./map-types";
-import { formatChatTimestamp } from "./llm-prompt-assembler";
+import { formatPromptTimestamp } from "./prompt-time";
 import { kvGet, kvSet, kvRemove, registerKvMigration, registerDynamicPrefix } from "./kv-db";
 import { DEFAULT_ADVENTURE_BILINGUAL_PROMPT } from "./bilingual-prompt-defaults";
 import { trackWrite } from "./pending-writes";
@@ -210,7 +210,7 @@ export function loadMapProjectionEntries(
     projections.push({
       id: `map_summary_${save.worldId}`,
       timestamp: summary.timestamp,
-      content: `[跑团游戏 ${formatChatTimestamp(summary.timestamp)}] ${summary.text}`,
+      content: `[跑团游戏 ${formatPromptTimestamp(summary.timestamp)}] ${summary.text}`,
     });
   }
   return projections;
@@ -233,7 +233,7 @@ export function loadMapSharedProjectionEntries(
     projections.push({
       id: `map_shared_${save.worldId}`,
       timestamp: summary.timestamp,
-      content: `[跑团游戏 ${formatChatTimestamp(summary.timestamp)}] ${summary.text}`,
+      content: `[跑团游戏 ${formatPromptTimestamp(summary.timestamp)}] ${summary.text}`,
     });
   }
   return projections;

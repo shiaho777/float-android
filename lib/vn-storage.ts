@@ -1,5 +1,5 @@
 import Dexie from "dexie";
-import { formatChatTimestamp } from "./llm-prompt-assembler";
+import { formatPromptTimestamp } from "./prompt-time";
 import type { VnSession, VnMessage, VnChapterMeta, VnLayoutPrefs, VnBeat, VnFrameAudio } from "./vn-types";
 import { trackWrite } from "./pending-writes";
 export type { VnSession, VnMessage, VnChapterMeta, VnLayoutPrefs, VnBeat };
@@ -379,7 +379,7 @@ export function loadVnProjectionEntries(
     const snippet = compactText(chapter.summaryContent, 500);
     if (!snippet) continue;
 
-    const formattedTs = formatChatTimestamp(ts);
+    const formattedTs = formatPromptTimestamp(ts);
     projections.push({
       id: `vn_projection_${chapter.id}`,
       timestamp: ts,

@@ -1,5 +1,5 @@
 import { loadChatSessions } from "./chat-storage";
-import { formatChatTimestamp } from "./llm-prompt-assembler";
+import { formatPromptTimestamp } from "./prompt-time";
 import { kvGet, kvRemove, kvSet, registerDynamicPrefix } from "./kv-db";
 
 const CHAT_OFFLINE_TURNS_PREFIX = "ai_phone_chat_offline_turns:";
@@ -170,7 +170,7 @@ export function loadChatOfflineProjectionEntries(
             if (options?.afterTimestamp && turn.createdAt <= options.afterTimestamp) continue;
             const summaryText = compactProjectionText(turn.summary, 500);
             if (!summaryText) continue;
-            const ts = formatChatTimestamp(turn.createdAt);
+            const ts = formatPromptTimestamp(turn.createdAt);
             entries.push({
                 id: `chat_offline_projection_${turn.id}`,
                 sessionId: session.id,

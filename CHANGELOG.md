@@ -12,6 +12,17 @@
 - 图标、启动图全部由 `assets/brand/*.svg` 生成（`npm run build:brand-assets`），新增 Android 自适应图标的渐变背景层与 Android 13 主题图标（monochrome）层、PWA maskable 图标与 apple-touch-icon。删除未被使用的旧 `scripts/generate-icons.js`。
 
 
+### 性能与体积
+
+- **APK 61.8 MB → 38.4 MB（-37.9%）**：中文展示字体裁到 GB2312 + ASCII + 中文标点（`npm run build:fonts`），字体总量 46.3 MB → 22.7 MB；裁掉的生僻字逐字回退到系统字体，不会出现豆腐块。
+- **首屏 JS 601 KB → 445 KB（gzip，-26%）**：主包 1,689 KB → 998 KB。
+  - `desktop-shell` 不再静态引入 `tool-executor`、`custom-app-host-api`，改为用时再 `import()`。
+  - 后台服务（追发 / 朋友圈 / 日记定时器）改为存储水合后按需加载，`chat-engine`、`llm-prompt-assembler`、`tool-executor`、`moments-engine`、`game-builtin-html` 全部移出启动包。
+  - `action-parser` 对 `follow-up-service`、`moments-engine` 改为懒加载。
+  - 5 个存储模块不再为了一个 `formatChatTimestamp` 把整个 `llm-prompt-assembler` 拖进启动包。
+  - `jszip` 改为按需加载（NovelAI 返回 zip 时才用）。
+- 删除 `main-app.tsx` 里从未被调用的字体预热死代码（约 140 行）。
+
 ## [1.0.3]（未发布）
 
 ### 修复
