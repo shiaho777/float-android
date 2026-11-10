@@ -100,10 +100,17 @@ export function SplashAnimation() {
     let pausedElapsed = 0;
     let isAnimating = false;
     let titleFontSize = 80;
+    let renderDpr = 1;
+    // 每帧重建渐变和测量文本是纯浪费：这些只跟画布尺寸/字号有关，缓存起来。
+    let bgGradient: CanvasGradient | null = null;
+    let bgGradientKey = "";
+    let taglineKey = "";
+    let taglineWidths: number[] = [];
     const charsSpawnedFor = new Set<Bubble>();
 
     function resize() {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      renderDpr = dpr;
       const r = stage.getBoundingClientRect();
       W = Math.max(1, r.width);
       H = Math.max(1, r.height);
@@ -419,22 +426,44 @@ export function SplashAnimation() {
           this.opacity = 1;
         }
       }
+      // 每个字母每帧要画 1 次正形 + 8 次偏移描边，6 个字母就是 54 次 fillText/帧。
+      // 预渲染成离屏精灵后每帧只需 1 次 drawImage。
+      sprite: HTMLCanvasElement | null = null;
+      spriteCssSize = 0;
+      buildSprite() {
+        const pad = 4;
+        const cssSize = Math.ceil(this.fontSize * 1.4) + pad * 2;
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.ceil(cssSize * renderDpr));
+        canvas.height = Math.max(1, Math.ceil(cssSize * renderDpr));
+        const c = canvas.getContext("2d");
+        if (!c) return;
+        c.scale(renderDpr, renderDpr);
+        c.font = `italic 400 ${this.fontSize}px ${FONT_SERIF}`;
+        c.textAlign = "center";
+        c.textBaseline = "middle";
+        const cx = cssSize / 2;
+        const cy = cssSize / 2;
+        c.fillStyle = "rgba(23,75,255,0.09)";
+        for (const [dx, dy] of [[-1.6, 0], [1.6, 0], [0, -1.6], [0, 1.6], [-1.1, -1.1], [1.1, 1.1], [-1.1, 1.1], [1.1, -1.1]]) {
+          c.fillText(this.ch, cx + dx, cy + dy);
+        }
+        c.fillStyle = "rgba(23,75,255,0.42)";
+        c.fillText(this.ch, cx, cy);
+        this.sprite = canvas;
+        this.spriteCssSize = cssSize;
+      }
       draw() {
         if (this.opacity <= 0) return;
+        if (!this.sprite) this.buildSprite();
+        if (!this.sprite) return;
+        const size = this.spriteCssSize;
         ctx.save();
         ctx.globalAlpha = this.opacity;
         ctx.translate(this.x, this.y);
         ctx.rotate(this.rot);
         ctx.scale(this.scale, this.scale);
-        ctx.font = `italic 400 ${this.fontSize}px ${FONT_SERIF}`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillStyle = "rgba(23,75,255,0.09)";
-        for (const [dx, dy] of [[-1.6, 0], [1.6, 0], [0, -1.6], [0, 1.6], [-1.1, -1.1], [1.1, 1.1], [-1.1, 1.1], [1.1, -1.1]]) {
-          ctx.fillText(this.ch, dx, dy);
-        }
-        ctx.fillStyle = "rgba(23,75,255,0.42)";
-        ctx.fillText(this.ch, 0, 0);
+        ctx.drawImage(this.sprite, -size / 2, -size / 2, size, size);
         ctx.restore();
       }
     }
@@ -489,10 +518,15 @@ export function SplashAnimation() {
       const t = now - startTime;
       ctx.fillStyle = PAPER;
       ctx.fillRect(0, 0, W, H);
-      const grad = ctx.createRadialGradient(W / 2, H * 0.45, 0, W / 2, H * 0.45, Math.max(W, H) * 0.75);
-      grad.addColorStop(0, "rgba(23,75,255,0)");
-      grad.addColorStop(1, "rgba(23,75,255,0.08)");
-      ctx.fillStyle = grad;
+      const bgKey = `${W}x${H}`;
+      if (!bgGradient || bgGradientKey !== bgKey) {
+        const grad = ctx.createRadialGradient(W / 2, H * 0.45, 0, W / 2, H * 0.45, Math.max(W, H) * 0.75);
+        grad.addColorStop(0, "rgba(23,75,255,0)");
+        grad.addColorStop(1, "rgba(23,75,255,0.08)");
+        bgGradient = grad;
+        bgGradientKey = bgKey;
+      }
+      ctx.fillStyle = bgGradient;
       ctx.fillRect(0, 0, W, H);
       specks.forEach((s) => { s.update(); s.draw(); });
       const visibleCount = SCRIPT.reduce((count, item) => count + (t >= item.start ? 1 : 0), 0);
@@ -509,7 +543,12 @@ export function SplashAnimation() {
         ctx.font = `300 10px ${FONT_MONO}`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        const ws = [...txt].map((c) => ctx.measureText(c).width);
+        const taglineK = `${txt}|${W}`;
+        if (taglineKey !== taglineK) {
+          taglineWidths = [...txt].map((c) => ctx.measureText(c).width);
+          taglineKey = taglineK;
+        }
+        const ws = taglineWidths;
         const totalW = ws.reduce((sum, width) => sum + width + ls, 0) - ls;
         let xx = W / 2 - totalW / 2;
         for (let i = 0; i < txt.length; i++) {

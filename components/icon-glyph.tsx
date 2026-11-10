@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import type { IconId } from "@/lib/desktop-config";
 import {
   mdiCompass,
@@ -78,7 +80,7 @@ const MDI_PATHS: Record<IconId, string> = {
   findmy: mdiMapMarkerRadius,
 };
 
-export function IconGlyph({ id, className }: IconGlyphProps) {
+function IconGlyphImpl({ id, className }: IconGlyphProps) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -117,7 +119,7 @@ export function customAppGlyphPath(seed: string): string {
   return CUSTOM_APP_FALLBACK_PATHS[hash % CUSTOM_APP_FALLBACK_PATHS.length];
 }
 
-export function CustomAppGlyph({ seed, className }: { seed: string; className?: string }) {
+function CustomAppGlyphImpl({ seed, className }: { seed: string; className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden>
       <path
@@ -128,3 +130,7 @@ export function CustomAppGlyph({ seed, className }: { seed: string; className?: 
     </svg>
   );
 }
+
+// 桌面上每个图标都会渲染一次，父组件频繁重渲染时没必要跟着重画。
+export const IconGlyph = memo(IconGlyphImpl);
+export const CustomAppGlyph = memo(CustomAppGlyphImpl);
