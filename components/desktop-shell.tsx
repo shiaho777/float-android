@@ -1046,7 +1046,10 @@ const MusicShellOverlays = memo(function MusicShellOverlays({
   return (
     <>
       {musicPlayer?.showFullPlayer && musicPlayer.currentTrack && <Suspense fallback={null}><MusicPlayer /></Suspense>}
-      <Suspense fallback={null}><MusicFloat hidden={activeApp === "music" || musicPlayer?.showFullPlayer} /></Suspense>
+      {/* 没在放歌时 MusicFloat 只 return null，挂上去等于白下载一个 chunk */}
+      {musicPlayer?.currentTrack ? (
+        <Suspense fallback={null}><MusicFloat hidden={activeApp === "music" || musicPlayer?.showFullPlayer} /></Suspense>
+      ) : null}
     </>
   );
 });
@@ -1806,6 +1809,15 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
       }
 
       if (cancelled) return;
+      // 等一个空闲窗口再拉起后台引擎：它们连同依赖约 20 个 chunk，
+      // 桌面刚出现就加载会和用户的第一次滑动/点按抢主线程。
+      await new Promise<void>((resolve) => {
+        type IdleWin = Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number };
+        const idleWin = window as IdleWin;
+        if (typeof idleWin.requestIdleCallback === "function") idleWin.requestIdleCallback(() => resolve(), { timeout: 2500 });
+        else window.setTimeout(resolve, 1200);
+      });
+      if (cancelled) return;
       // 这三个引擎经 chat-engine / tool-executor 串起约 600KB 代码，
       // 首帧并不需要，等存储水合完成后再按需加载。
       try {
@@ -2098,29 +2110,43 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
   // 冒险等）不预热，留给首次点开自己付。
   useEffect(() => {
     if (!desktopReady) return;
+    // 只预热真正高频的两个。之前一次预热 8 个 App，会在桌面刚出现时
+    // 连续拉起 40+ 个 chunk（每个 App 还会拖进自己的依赖），和用户最初几次
+    // 交互抢主线程。现在交给空闲回调逐个加载，交互动画优先。
     const warmups = [
       () => import("@/components/chat/phone-chat-app"),
-      () => import("@/components/phone-character-app"),
       () => import("@/components/phone-settings-app"),
-      () => import("@/components/phone-theme-app"),
-      () => import("@/components/diary/diary-app"),
-      () => import("@/components/calendar-app"),
-      () => import("@/components/music/music-app"),
-      () => import("@/components/checkphone/checkphone-app"),
     ];
+    type IdleWindow = Window & {
+      requestIdleCallback?: (cb: (deadline: { timeRemaining: () => number }) => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    const idleWindow = window as IdleWindow;
     let cancelled = false;
     let idx = 0;
+    let idleHandle = 0;
     let timer = 0;
-    const step = () => {
+    const schedule = (fn: () => void) => {
+      if (typeof idleWindow.requestIdleCallback === "function") {
+        idleHandle = idleWindow.requestIdleCallback(() => fn(), { timeout: 4000 });
+      } else {
+        timer = window.setTimeout(fn, 1500);
+      }
+    };
+    const step = (deadline?: { timeRemaining: () => number }) => {
       if (cancelled || idx >= warmups.length) return;
+      // 空闲时间不够就先让出，等下一个空闲窗口，别在滑动时插队
+      if (deadline && deadline.timeRemaining() < 8) { schedule(step); return; }
       const load = warmups[idx++];
       void load().catch(() => { /* 预热失败无碍，首次点开时会重试 */ })
-        .finally(() => {
-          if (!cancelled) timer = window.setTimeout(step, 400);
-        });
+        .finally(() => { if (!cancelled) schedule(step); });
     };
-    timer = window.setTimeout(step, 1200);
-    return () => { cancelled = true; window.clearTimeout(timer); };
+    schedule(step);
+    return () => {
+      cancelled = true;
+      if (idleHandle) idleWindow.cancelIdleCallback?.(idleHandle);
+      window.clearTimeout(timer);
+    };
   }, [desktopReady]);
 
 
