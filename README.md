@@ -51,7 +51,7 @@ Pneuma 不再沿用以前那套"Release 里不放安装包、请自己 Fork 再�
 
 ### 网页
 
-网页和安装包是同一套页面。把仓库交给任意静态网站托管，构建命令 `npm run build`，发布目录 `out`，站点挂在域名根目录。Netlify 和 Vercel 会读仓库里的配置；Cloudflare Pages 在项目设置里填同样的构建命令和输出目录。环境变量可以留空。`/world-builder` 和 `/characters` 是另外两个页面。
+网页和安装包是同一套页面。把仓库交给任意静态网站托管，构建命令 `npm run build`，发布目录 `out`，站点挂在域名根目录。Netlify 和 Vercel 会读仓库里的配置；Cloudflare Pages 在项目设置里填同样的构建命令和输出目录。环境变量可以留空。`/characters` 是另一个页面。
 
 网页从浏览器直接请求你填写的 API，接口需要允许这个网站跨域访问。站点是 https 时，`http://` 的局域网地址可能会被浏览器拦住，请用 https 或本机的 localhost。
 

@@ -297,7 +297,7 @@ const PRIMARY_DATA_MODULES: DataModuleDefinition[] = [
   {
     id: "creative",
     label: "创作与玩法",
-    description: "故事、漫卷、地图、住宅、黑市、查手机快照与世界构建素材",
+    description: "故事、漫卷、地图、住宅、黑市与查手机快照",
     variant: "success",
     large: true,
     sources: [
@@ -306,8 +306,6 @@ const PRIMARY_DATA_MODULES: DataModuleDefinition[] = [
       { type: "indexeddb", dbName: "AiPhoneMapDB", label: "地图冒险" },
       { type: "indexeddb", dbName: "AiPhoneDwellingDB", label: "住宅" },
       { type: "indexeddb", dbName: "AiPhoneCheckPhoneDB", label: "查手机快照" },
-      { type: "indexeddb", dbName: "world-builder-scenes", label: "世界构建场景" },
-      { type: "indexeddb", dbName: "world-builder-models", label: "世界构建模型" },
       {
         type: "kv",
         label: "创作玩法配置",

@@ -132,7 +132,7 @@ NEXT_PUBLIC_ 开头的变量会打包进网页，访客都能看到。第三方 
 ## 多媒体
 
 ### Q: 生图 / 语音 / 在线音乐怎么启用？
-都是可选增强：生图在设置里配置生图 API 或代理；语音合成用 Minimax（自配 key）；在线音乐需自行部署 NeteaseCloudMusicApi 兼容实例并在音乐 APP 设置里填地址（或部署时配 NEXT_PUBLIC_DEFAULT_NETEASE_API_BASE）。3D 世界搭建（筑境）需要用户自己的 Tripo key。
+都是可选增强：生图在设置里配置生图 API 或代理；语音合成用 Minimax（自配 key）；在线音乐需自行部署 NeteaseCloudMusicApi 兼容实例并在音乐 APP 设置里填地址（或部署时配 NEXT_PUBLIC_DEFAULT_NETEASE_API_BASE）。
 
 ### Q: 语音音色怎么手动填？
 「设置 → 语音 API」里，音色一栏支持直接填自定义 Voice ID（默认音色或自己的克隆音色 ID 都可以）。

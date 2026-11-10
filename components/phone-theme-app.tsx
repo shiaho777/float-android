@@ -1179,7 +1179,7 @@ function GlobalCSSPage({
    Icon Skin Page
    ══════════════════════════════════════════ */
 
-// 三页桌面 + DOCK 的默认图标全收进来。漏了第三页时，筑境/工坊/资源集市/独家特调
+// 三页桌面 + DOCK 的默认图标全收进来。漏了第三页时，工坊/资源集市/独家特调
 // 这四个图标在外观里根本没有格子，换不了皮肤。
 const BUILTIN_ICON_SKIN_IDS: IconId[] = [...PAGE_1_DEFAULT, ...PAGE_2_DEFAULT, ...PAGE_3_DEFAULT, ...DOCK_DEFAULT];
 

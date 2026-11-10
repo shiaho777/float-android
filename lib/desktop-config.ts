@@ -25,7 +25,6 @@ export type IconId =
   | "theme"
   | "resources"
   | "characters"
-  | "worldbuilder"
   | "qa"
   | "resource_hub"
   | "mixology"
@@ -69,7 +68,7 @@ export const PAGE_2_DEFAULT: IconId[] = [
 ];
 
 // 第三页默认图标：右半边 2×2 排布（左半边留给日历组件），位置见 createDefaultDesktopIconLayout
-export const PAGE_3_DEFAULT: IconId[] = ["worldbuilder", "qa", "resource_hub", "mixology", "findmy"];
+export const PAGE_3_DEFAULT: IconId[] = ["qa", "resource_hub", "mixology", "findmy"];
 
 export const DOCK_DEFAULT: IconId[] = ["settings", "theme", "resources", "characters"];
 
@@ -113,13 +112,6 @@ export const ICONS: Record<IconId, IconMeta> = {
     tone: "var(--c-icon-lilac)",
     placeholder: false,
     path: "/characters"
-  },
-  worldbuilder: {
-    id: "worldbuilder",
-    label: "筑境",
-    tone: "var(--c-icon-amber)",
-    placeholder: false,
-    path: "/world-builder"
   },
   qa: { id: "qa", label: "工坊", tone: "var(--c-icon-qa, #4a505c99)", placeholder: false },
   resource_hub: { id: "resource_hub", label: "资源集市", tone: "var(--c-icon-amber)", placeholder: false },

@@ -15,7 +15,8 @@
 ### 性能与体积
 
 - **APK 61.8 MB → 15.6 MB（-74.8%）**：不再随包分发字体。46.3 MB 的中文展示字体（MiSans、汇文明朝、Noto Serif SC、龙藏、喜脉喜欢体、鸿雷小纸条、辰宇落雁体、Zen Maru 等）与 1.1 MB 拉丁字体全部移除，`styles/fonts.css`、各处的 `@font-face`、`npm run build:fonts` 一并删除，文字统一走系统字体栈；NOTICE 的字体授权段落同步移除。
-- **首屏 JS 601 KB → 445 KB（gzip，-26%）**：主包 1,689 KB → 998 KB。
+- **移除「筑境」3D 世界搭建功能**：删除 `components/world-builder/`、独立页面入口 `entries/world-builder.tsx` 与 `world-builder/`、`public/models`（6.8 MB 模型）与 `public/hdri`、`styles/world-builder.css`、`android-fullscreen` 组件和相关脚本；桌面第三页的筑境图标、备份清单里的两个 IndexedDB 源、`three` / `@react-three/*` / `@gltf-transform/*` / `d3-delaunay` 依赖一并去掉。APK 15.6 MB → 8.8 MB。
+- **首屏 JS 601 KB → 440 KB（gzip，-27%）**：主包 1,689 KB → 1,018 KB。
   - `desktop-shell` 不再静态引入 `tool-executor`、`custom-app-host-api`，改为用时再 `import()`。
   - 后台服务（追发 / 朋友圈 / 日记定时器）改为存储水合后按需加载，`chat-engine`、`llm-prompt-assembler`、`tool-executor`、`moments-engine`、`game-builtin-html` 全部移出启动包。
   - `action-parser` 对 `follow-up-service`、`moments-engine` 改为懒加载。
