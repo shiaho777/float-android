@@ -133,7 +133,6 @@ export function ReadingShelf({ onOpenBook, onClose, appearance, backgroundUrl, o
             }
             setProgressMap(map);
         })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {

@@ -63,7 +63,6 @@ export const ChatPluginSlot = memo(function ChatPluginSlot({ name, slotProps, cl
             ro.disconnect();
             wrapper.style.removeProperty("--chat-plugin-header-height");
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [name, slotVersion, hasPlugins, sessionId]);
 
     if (!hasPlugins) return null;
