@@ -1243,7 +1243,7 @@ export function CustomAppRunner({
       if (el.loop) {
         try { await el.play(); } catch (err) {
           cleanupFrameAudioChannel(entry);
-          throw new Error(`宿主音频播放被拦截:${err instanceof Error ? err.message : String(err)}`);
+          throw new Error(`宿主音频播放被拦截:${err instanceof Error ? err.message : String(err)}`, { cause: err });
         }
         return { ok: true, loop: true };
       }

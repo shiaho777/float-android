@@ -93,14 +93,12 @@ import {
 } from "@/lib/desktop-layout-storage";
 import { WidgetRenderer } from "@/components/widgets/widget-renderer";
 import type { DIYWidgetTemplate } from "@/lib/widget-types";
-import { DebugPromptPanel } from "@/components/debug-prompt-panel";
+import { DebugPromptGate } from "@/components/debug-prompt-gate";
 import { QuickActionFloat } from "@/components/quick-action-float";
-import { CHAT_MESSAGE_PUSHED_EVENT, CHAT_REQUEST_REPLY_EVENT, findChatSessionById, hydrateChatStorage, loadChatSessions, loadChatMessages, peekChatSessions, pushChatMessage, type ChatMessage, type ChatSession } from "@/lib/chat-storage";
+import { CHAT_MESSAGE_PUSHED_EVENT, CHAT_REQUEST_REPLY_EVENT, findChatSessionById, hydrateChatStorage, loadChatSessions, peekChatSessions, pushChatMessage, type ChatMessage, type ChatSession } from "@/lib/chat-storage";
 import { ensureGlobalBindingDefaults, resolveUserIdentity } from "@/lib/settings-storage";
 import { loadCharacters } from "@/lib/character-storage";
-import { generateChatCompletion, flattenCompletionResult } from "@/lib/chat-engine";
-import { parseAIResponse } from "@/lib/rich-message-parser";
-import { requestBackgroundChatReply, scheduleFollowUp } from "@/lib/follow-up-service";
+import { requestBackgroundChatReply } from "@/lib/follow-up-service";
 import { CHAT_MESSAGE_NOTICE_EVENT, CHAT_OPEN_SESSION_EVENT, type ChatMessageNoticeDetail } from "@/lib/chat-notification-events";
 import { startIncomingCallVibration } from "@/lib/call-vibration";
 import { installChatSoundListener, playChatSoundOnce, setMiniChatSoundSessionId, startChatSoundLoop } from "@/lib/chat-sound";
@@ -1809,6 +1807,7 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
       startFollowUpService();
       startMomentsService();
       startDiaryEntryTimerService();
+      servicesStarted = true;
     })();
 
     return () => {
@@ -4277,26 +4276,8 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
                           content: `[我拒绝了${callLabel}]`,
                         });
                         setIncomingCall(null);
-                        // Trigger AI reply after declining — fire event for chat-room, plus background fallback
-                        window.dispatchEvent(new CustomEvent("call-declined", { detail: { sessionId: call.sessionId } }));
-                        const sessions = loadChatSessions();
-                        const sess = sessions.find(s => s.id === call.sessionId);
-                        if (sess) {
-                          const sid = call.sessionId;
-                          kvSet("chat-generating:" + sid, JSON.stringify({ startedAt: Date.now() }));
-                          const msgs = loadChatMessages(sid);
-                          generateChatCompletion(sess, msgs, { appTags: ["chat", "text"] }).then(cr => { const text = flattenCompletionResult(cr);
-                            const { parts, stateValues } = parseAIResponse(text, []);
-                            for (const p of parts) {
-                              if (p.mediaType === "voice_call" || p.mediaType === "video_call") continue;
-                              pushChatMessage({ sessionId: sid, role: "assistant", content: p.content, mediaType: p.mediaType, mediaData: p.mediaData });
-                            }
-                            scheduleFollowUp(sid, 0, stateValues);
-                          }).catch(() => {}).finally(() => {
-                            kvRemove("chat-generating:" + sid);
-                            window.dispatchEvent(new CustomEvent("chat-bg-complete", { detail: { sessionId: sid } }));
-                          });
-                        }
+                        // 拒接后让角色回应：聊天室开着时由房间接手，否则桌面兜底走后台回复（带生成锁与失败提示）
+                        window.dispatchEvent(new CustomEvent(CHAT_REQUEST_REPLY_EVENT, { detail: { sessionId: call.sessionId } }));
                       }}
                     >
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -4761,7 +4742,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
                     );
                   })}
                 </footer>
-              <DebugPromptPanel />
+              <DebugPromptGate />
               <QuickActionFloat />
               <Suspense fallback={null}><MascotFloat /></Suspense>
               {/* 预览弹窗宿主：独立于桌宠的展开/收起状态，否则桌宠收成小球时弹不出来 */}

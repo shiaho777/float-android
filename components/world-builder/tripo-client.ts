@@ -21,7 +21,7 @@ async function tripoRequest(
     });
   } catch (error) {
     throw new Error(
-      `Tripo API 直连失败（可能不允许跨域）：${error instanceof Error ? error.message : String(error)}`,
+      `Tripo API 直连失败（可能不允许跨域）：${error instanceof Error ? error.message : String(error)}`, { cause: error }
     );
   }
   const data = await res.json().catch(() => ({})) as Record<string, unknown> & TripoErrorPayload;

@@ -33,7 +33,7 @@ export function loadMusicBg(): MusicBgConfig {
         const raw = kvGet(MUSIC_BG_KEY);
         if (!raw) return DEFAULT_MUSIC_BG;
         const parsed = JSON.parse(raw) as Partial<MusicBgConfig> & { applyPlayer?: boolean };
-        let playerMode: MusicPlayerBgMode =
+        const playerMode: MusicPlayerBgMode =
             parsed.playerMode === "cover" || parsed.playerMode === "follow" || parsed.playerMode === "custom"
                 ? parsed.playerMode
                 // Migrate from the earlier {applyPlayer} shape

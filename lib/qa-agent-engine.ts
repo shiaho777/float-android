@@ -165,7 +165,7 @@ async function streamQaProviderRequest(
         return { content: stripHallucinatedTimestamps(content), reasoning };
     } catch (error) {
         if (idleAborted && !options?.signal?.aborted) {
-            throw new Error(`流式响应停滞超过 ${Math.round(idleMs / 1000)} 秒（常见于中转站开了响应缓冲），已中断并改用非流式重取`);
+            throw new Error(`流式响应停滞超过 ${Math.round(idleMs / 1000)} 秒（常见于中转站开了响应缓冲），已中断并改用非流式重取`, { cause: error });
         }
         throw error;
     } finally {
@@ -340,10 +340,10 @@ async function requestQaCompletion(
         await options?.callbacks?.onStreamFallback?.(formatQaErrorMessage(streamError));
         const request = buildProviderRequest(apiConfig, null, messages, { maxTokens });
         const response = await fetchLlmPayload(request, { signal: options?.signal });
-        if (!response.ok) throw new Error(`API ${response.status}: ${await response.text()}`);
+        if (!response.ok) throw new Error(`API ${response.status}: ${await response.text()}`, { cause: streamError });
         const parsed = parseProviderResponse(request.providerKind, await response.json());
         const content = stripHallucinatedTimestamps(parsed.content || "").trim();
-        if (!content) throw new Error("LLM 返回了空内容");
+        if (!content) throw new Error("LLM 返回了空内容", { cause: streamError });
         const visible = stripThinkBlocks(content);
         if (visible) await options?.callbacks?.onDelta?.(visible);
         return { content, reasoning: parsed.reasoning || "" };
@@ -693,7 +693,7 @@ async function callQaAgentNative(apiConfig: ApiConfig, history: QaEngineMessage[
             await callbacks?.onStreamFallback?.(formatQaErrorMessage(streamError));
             const fallbackRequest = buildProviderRequest(apiConfig, null, messages, { tools, maxTokens: getQaMaxOutputTokens() ?? undefined });
             const response = await fetchLlmPayload(fallbackRequest, { signal: options?.signal });
-            if (!response.ok) throw new Error(`API ${response.status}: ${await response.text()}`);
+            if (!response.ok) throw new Error(`API ${response.status}: ${await response.text()}`, { cause: streamError });
             const parsed = parseProviderResponse(fallbackRequest.providerKind, await response.json());
             if (parsed.content) await filter.push(parsed.content);
             result = {

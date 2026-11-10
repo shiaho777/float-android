@@ -101,7 +101,7 @@ export default function GenerateModal({ open, categories, characters = [], onClo
       } catch (e: any) {
         consecutiveErrors++;
         if (consecutiveErrors >= 3) {
-          throw new Error(`${stageLabel}状态查询失败：${e?.message || "网络错误"}`);
+          throw new Error(`${stageLabel}状态查询失败：${e?.message || "网络错误"}`, { cause: e });
         }
         setProgress(`${stageLabel}·状态查询重试中…`);
         continue;

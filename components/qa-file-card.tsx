@@ -123,7 +123,6 @@ export function QaFileCard({ file }: { file: QaFileCardInfo }) {
                         </div>
                         <div className="modal-body" data-ui="modal-body" style={{ overflowY: "auto", minHeight: 0, ...(preview.kind === "html" && !htmlSourceView ? { padding: 0, display: "flex" } : null) }}>
                             {preview.kind === "image" ? (
-                                /* eslint-disable-next-line @next/next/no-img-element */
                                 <img src={preview.content} alt={file.name} style={{ maxWidth: "100%", borderRadius: 8 }} />
                             ) : preview.kind === "html" && !htmlSourceView ? (
                                 <iframe

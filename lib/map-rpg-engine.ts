@@ -756,7 +756,7 @@ export async function dmScene(ctx: DMContext, apiConfig: ApiConfig): Promise<DMS
     p = JSON.parse(extractJSON(result.content));
   } catch (e) {
     console.error("[DM] JSON parse failed. Raw:", result.content.slice(0, 500));
-    throw new Error(`DM返回格式错误: ${(e as Error).message}\n原文前200字: ${result.content.slice(0, 200)}`);
+    throw new Error(`DM返回格式错误: ${(e as Error).message}\n原文前200字: ${result.content.slice(0, 200)}`, { cause: e });
   }
   return {
     narration: p.narration || "",
@@ -1153,7 +1153,7 @@ async function dmResolve(ctx: DMContext, apiConfig: ApiConfig): Promise<DMSceneR
   try {
     p = JSON.parse(extractJSON(result.content));
   } catch (e) {
-    throw new Error(`DM裁决格式错误: ${(e as Error).message}`);
+    throw new Error(`DM裁决格式错误: ${(e as Error).message}`, { cause: e });
   }
   return {
     narration: p.narration || "",
@@ -1383,7 +1383,7 @@ export function executeAgentAction(
 ): { agent: CharacterAgent; journalText: string; userMessage?: string } {
   const nodeName = (id: string) => allNodes.find(n => n.id === id)?.name || id;
   const now = formatGameTime(gameDay, gameTime);
-  let updated = { ...agent };
+  const updated = { ...agent };
   let journalText = "";
   let userMessage: string | undefined;
 
@@ -1499,7 +1499,7 @@ export async function generateEnding(ctx: DMContext, apiConfig: ApiConfig): Prom
   try {
     p = JSON.parse(extractJSON(result.content));
   } catch (e) {
-    throw new Error(`结局格式错误: ${(e as Error).message}`);
+    throw new Error(`结局格式错误: ${(e as Error).message}`, { cause: e });
   }
   return {
     paragraphs: (Array.isArray(p.paragraphs) ? p.paragraphs : [p.paragraphs || result.content])

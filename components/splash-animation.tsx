@@ -456,7 +456,7 @@ export function SplashAnimation() {
       const word = "float";
       const widths = [...word].map((c) => ctx.measureText(c).width);
       const spacing = titleFontSize * 0.04;
-      let total = widths.reduce((sum, width) => sum + width, 0) + spacing * (word.length - 1);
+      const total = widths.reduce((sum, width) => sum + width, 0) + spacing * (word.length - 1);
       let xc = W / 2 - total / 2;
       const titleY = H * 0.5;
       for (let i = 0; i < word.length; i++) {
@@ -510,7 +510,7 @@ export function SplashAnimation() {
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         const ws = [...txt].map((c) => ctx.measureText(c).width);
-        let totalW = ws.reduce((sum, width) => sum + width + ls, 0) - ls;
+        const totalW = ws.reduce((sum, width) => sum + width + ls, 0) - ls;
         let xx = W / 2 - totalW / 2;
         for (let i = 0; i < txt.length; i++) {
           ctx.fillText(txt[i], xx + ws[i] / 2, H * 0.5 + titleFontSize * 0.55);

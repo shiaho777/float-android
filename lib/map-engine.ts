@@ -690,7 +690,7 @@ export function generateMap(
       // Topo dot-matrix
       if (landWeight[x][y] > 0.05) {
         const hVal = height[x][y];
-        let alpha = Math.max(0.0, Math.min(1.0, hVal / 2.5)) ** 1.3;
+        const alpha = Math.max(0.0, Math.min(1.0, hVal / 2.5)) ** 1.3;
         if (alpha > 0.02) {
           topoRects.push({
             x: x * SCALE + 1,

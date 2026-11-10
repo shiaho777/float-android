@@ -15,7 +15,7 @@ import { startAutoBackupLoop } from "@/lib/auto-backup";
 import { evaluateTierAdjustments } from "@/lib/character-tier";
 import { getThemeAssetMap, readThemeProfile } from "@/lib/theme-storage";
 import { resolveActiveIconSkins, type ThemeProfile } from "@/lib/theme-types";
-import { hasPendingMcpOAuthCallback } from "@/lib/tool-executor";
+import { hasPendingMcpOAuthCallback } from "@/lib/mcp-oauth-state";
 import { shouldRequestPwaFullscreen } from "@/lib/pwa-display-mode";
 import { isPhoneShellMobile } from "@/lib/shell-layout-mode";
 

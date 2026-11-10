@@ -426,7 +426,6 @@ export function MixologyApp({ onClose }: { onClose: () => void }) {
                                             {chosen ? (
                                                 <>
                                                     {chosen.kind === "character" && chosen.cover ? (
-                                                        // eslint-disable-next-line @next/next/no-img-element
                                                         <img className="mix-slot-cover" src={chosen.cover} alt={chosen.name} />
                                                     ) : (
                                                         <div className="mix-slot-glyph"><KindGlyph kind={kind} size={34} /></div>
@@ -575,7 +574,6 @@ export function MixologyApp({ onClose }: { onClose: () => void }) {
                                 return (
                                     <div className="mix-session-row" key={session.id} onClick={() => setPlaying(session.id)}>
                                         {card?.cover ? (
-                                            // eslint-disable-next-line @next/next/no-img-element
                                             <img className="mix-session-ava" src={card.cover} alt={session.charName} />
                                         ) : (
                                             <div className="mix-session-ava-fallback">{session.charName.slice(0, 1)}</div>

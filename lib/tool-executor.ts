@@ -22,6 +22,15 @@ import {
     toolNameMatches,
 } from "./tool-storage";
 import { executeCustomAppToolCall } from "./custom-app-tool-runtime";
+import {
+    MCP_OAUTH_CALLBACK_STORAGE_KEY,
+    MCP_OAUTH_PENDING_STORAGE_KEY,
+    readStorageJson,
+    removeStorageKey,
+    writeStorageJson,
+    type McpOAuthCallbackState,
+    type McpOAuthPendingState,
+} from "./mcp-oauth-state";
 import { characterWorkspace, agentComputerRequest, isAgentComputerConfigured } from "./agent-computer";
 import { AGENT_COMPUTER_CAPABILITY_ID, CALENDAR_MANAGEMENT_CAPABILITY_ID, LOCAL_DATA_LIBRARY_CAPABILITY_ID, MEMORY_MANAGE_CAPABILITY_ID, MEMORY_WRITE_CAPABILITY_ID, MUSIC_CONTROL_CAPABILITY_ID, SEND_FILE_CAPABILITY_ID, TIMED_WAKE_CAPABILITY_ID, TOOLBOX_MANAGEMENT_CAPABILITY_ID, getInternalCapability } from "./internal-capability-storage";
 import { loadMemoryEntriesByType, saveMemoryEntry, loadMemoryConfig } from "./memory-storage";
@@ -241,7 +250,7 @@ async function directMcpFetch(
             isNativeHttpAvailable()
                 ? `直连请求失败：无法连接 MCP 服务器（${err instanceof Error ? err.message : String(err)}）。请确认服务器已启动、地址端口正确。`
                 : "直连请求失败：无法连接 MCP 服务器，或被浏览器 CORS 拦截。"
-                    + "请确认服务器已启动、地址端口正确，且允许了跨域（Access-Control-Allow-Origin）。");
+                    + "请确认服务器已启动、地址端口正确，且允许了跨域（Access-Control-Allow-Origin）。", { cause: err });
     }
     const text = await res.text();
     const headers: Record<string, string> = {};
@@ -3050,35 +3059,6 @@ type ResolvedMcpOAuthMetadata = {
     authorizationServerUrl?: string;
 };
 
-type McpOAuthPendingState = {
-    state: string;
-    serverId: string;
-    serverName: string;
-    serverDescription?: string;
-    serverUrl: string;
-    serverEnabled: boolean;
-    serverHeaders?: Record<string, string>;
-    redirectUri: string;
-    codeVerifier: string;
-    clientId: string;
-    clientSecret?: string;
-    authorizationEndpoint: string;
-    tokenEndpoint: string;
-    registrationEndpoint?: string;
-    authorizationServerUrl?: string;
-    protectedResourceMetadataUrl?: string;
-    createdAt: number;
-};
-
-type McpOAuthCallbackState = {
-    state: string;
-    code?: string;
-    error?: string;
-    createdAt: number;
-};
-
-const MCP_OAUTH_PENDING_STORAGE_KEY = "ai_phone_mcp_oauth_pending_v1";
-export const MCP_OAUTH_CALLBACK_STORAGE_KEY = "ai_phone_mcp_oauth_callback_v1";
 const MCP_OAUTH_MAX_AGE_MS = 10 * 60 * 1000;
 const MCP_OAUTH_CALLBACK_TIMEOUT_MS = 10 * 60 * 1000;
 // Per-probe timeout for OAuth metadata discovery. Candidates are tried in parallel,
@@ -3570,31 +3550,6 @@ function persistMcpOAuthState(server: McpServerConfig): void {
     }
 }
 
-function readStorageJson<T>(key: string): T | null {
-    if (typeof window === "undefined") return null;
-    try {
-        const raw = window.localStorage.getItem(key);
-        if (!raw) return null;
-        return JSON.parse(raw) as T;
-    } catch {
-        return null;
-    }
-}
-
-function writeStorageJson(key: string, value: unknown): void {
-    if (typeof window === "undefined") return;
-    try {
-        window.localStorage.setItem(key, JSON.stringify(value));
-    } catch { /* ignore storage failures */ }
-}
-
-function removeStorageKey(key: string): void {
-    if (typeof window === "undefined") return;
-    try {
-        window.localStorage.removeItem(key);
-    } catch { /* ignore storage failures */ }
-}
-
 function clearMcpOAuthFlow(): void {
     removeStorageKey(MCP_OAUTH_PENDING_STORAGE_KEY);
     removeStorageKey(MCP_OAUTH_CALLBACK_STORAGE_KEY);
@@ -3605,12 +3560,6 @@ function consumeStoredOAuthCallback(expectedState: string): McpOAuthCallbackStat
     if (!callback || callback.state !== expectedState) return null;
     removeStorageKey(MCP_OAUTH_CALLBACK_STORAGE_KEY);
     return callback;
-}
-
-export function hasPendingMcpOAuthCallback(): boolean {
-    const pending = readStorageJson<McpOAuthPendingState>(MCP_OAUTH_PENDING_STORAGE_KEY);
-    const callback = readStorageJson<McpOAuthCallbackState>(MCP_OAUTH_CALLBACK_STORAGE_KEY);
-    return Boolean(pending?.state && callback?.state && pending.state === callback.state);
 }
 
 export async function completePendingMcpOAuthCallback(): Promise<{ completed: boolean; success?: boolean; error?: string; serverName?: string }> {

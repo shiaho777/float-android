@@ -37,7 +37,6 @@ export function ScanPayCard({ url }: { url: string }) {
     <div className="scan-pay-card">
       <div className="scan-pay-title">{wallet}支付</div>
       {qr ? (
-        // eslint-disable-next-line @next/next/no-img-element
         <img className="scan-pay-qr" src={qr} alt={`${wallet}支付二维码`} draggable={false} />
       ) : (
         <div className="scan-pay-qr scan-pay-qr-fallback">二维码生成失败</div>

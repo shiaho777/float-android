@@ -912,7 +912,8 @@ export function RegexManager({ isActive = true }: { isActive?: boolean } = {}) {
                                                                                 disabled={lockedToInput}
                                                                                 onChange={(e) => {
                                                                                     const p = new Set(rule.placement || []);
-                                                                                    e.target.checked ? p.add(val) : p.delete(val);
+                                                                                    if (e.target.checked) p.add(val);
+                                                                                    else p.delete(val);
                                                                                     updateRule(rule.id, { placement: [...p] });
                                                                                 }}
                                                                             />

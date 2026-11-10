@@ -361,7 +361,6 @@ function NineSliceCalibrationDialog({
             "--mascot-nine-preview-zoom": previewZoom,
           } as React.CSSProperties}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className="mascot-nine-img" src={imageUrl} alt="" draggable={false} />
           {step === 1 ? (
             <span className="mascot-nine-scale-word">字</span>
@@ -1019,7 +1018,6 @@ export function MascotFloat() {
               {msg.images.map((ref, idx) => {
                 const url = imagePreviewCache[ref];
                 if (!url) return <div key={idx} className="mascot-msg-image mascot-msg-image-loading" />;
-                /* eslint-disable-next-line @next/next/no-img-element */
                 return (
                   <img
                     key={idx}
@@ -1043,7 +1041,6 @@ export function MascotFloat() {
     return (
       <div key={`${rawIndex}-${msg.createdAt || ""}`} className="mascot-msg" data-role={msg.role}>
         {msg.role === "mascot" && (
-          /* eslint-disable-next-line @next/next/no-img-element */
           <img className="mascot-msg-avatar" src={mascotAvatarUrl} alt="" />
         )}
         <div
@@ -1066,7 +1063,6 @@ export function MascotFloat() {
               {msg.images.map((ref, idx) => {
                 const url = imagePreviewCache[ref];
                 if (!url) return <div key={idx} className="mascot-msg-image mascot-msg-image-loading" />;
-                /* eslint-disable-next-line @next/next/no-img-element */
                 return (
                   <img
                     key={idx}
@@ -2138,7 +2134,6 @@ export function MascotFloat() {
 
       {/* ── Animating / Floating mascot ── */}
       {(state === "animating_in" || state === "animating_out") ? (
-        /* eslint-disable-next-line @next/next/no-img-element */
         <img className="mascot-flight-img" src={mascotAvatarUrl} alt={mascotDisplayName} style={animStyle} />
       ) : (
         <>
@@ -2157,7 +2152,6 @@ export function MascotFloat() {
             onPointerUp={handlePointerUp}
             onContextMenu={(e) => e.preventDefault()}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img className="mascot-float-img" src={mascotAvatarUrl} alt={mascotDisplayName} />
           </div>
 
@@ -2245,7 +2239,6 @@ export function MascotFloat() {
                       {visibleMascotEntries.map(renderMascotMsg)}
                       {isThinking && (
                         <div className="mascot-msg" data-role="mascot">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img className="mascot-msg-avatar" src={mascotAvatarUrl} alt="" />
                           <div className="mascot-msg-bubble mascot-thinking">思考中<span className="mascot-dot"></span><span className="mascot-dot"></span><span className="mascot-dot"></span></div>
                         </div>
@@ -2258,7 +2251,6 @@ export function MascotFloat() {
                           return (
                             <div key={idx} className="mascot-pending-image-item">
                               {previewUrl && (
-                                /* eslint-disable-next-line @next/next/no-img-element */
                                 <img src={previewUrl} alt="" />
                               )}
                               <button type="button" onClick={() => setPendingImages((arr) => arr.filter((_, i) => i !== idx))} aria-label="删除">✕</button>
@@ -2351,7 +2343,6 @@ export function MascotFloat() {
                         {visibleMascotEntries.map(renderMascotMsg)}
                         {isThinking && (
                           <div className="mascot-msg" data-role="mascot">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img className="mascot-msg-avatar" src={mascotAvatarUrl} alt="" />
                             <div className="mascot-msg-bubble mascot-thinking">思考中<span className="mascot-dot"></span><span className="mascot-dot"></span><span className="mascot-dot"></span></div>
                           </div>
@@ -2364,7 +2355,6 @@ export function MascotFloat() {
 	                            return (
 	                              <div key={idx} className="mascot-pending-image-item">
 	                                {previewUrl ? (
-	                                  /* eslint-disable-next-line @next/next/no-img-element */
 	                                  <img src={previewUrl} alt="" />
 	                                ) : (
 	                                  <div className="mascot-msg-image-loading" />

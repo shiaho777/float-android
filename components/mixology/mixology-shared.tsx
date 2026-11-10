@@ -50,7 +50,6 @@ export function KindGlyph({ kind, size = 26 }: { kind: MixMaterialKind; size?: n
 export function AuthorAvatar({ name, avatar, size = 32 }: { name?: string; avatar?: string; size?: number }) {
     const display = (name ?? "").trim() || "我";
     if (avatar) {
-        // eslint-disable-next-line @next/next/no-img-element
         return <img className="mix-avatar" src={avatar} alt={display} style={{ width: size, height: size }} />;
     }
     return <span className="mix-avatar-fallback" style={{ width: size, height: size, fontSize: Math.round(size * 0.48) }}>{display.slice(0, 1)}</span>;
@@ -136,7 +135,6 @@ export function MatCard({
         return (
             <div className="mix-mat-card" data-kind={kind} data-poster="true" data-live={!shownCover && preview ? "true" : undefined} data-flow={flowCover ? "true" : undefined} onClick={onClick}>
                 {shownCover ? (
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img className="mix-mat-cover" src={shownCover} alt={name} onError={() => setCoverBroken(true)} />
                 ) : preview ? (
                     // 自动封面走文档流：卡片高度=缩样实际高度，不垫占位纹（透明缩样底下不透图标）

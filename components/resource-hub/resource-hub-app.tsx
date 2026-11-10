@@ -695,7 +695,6 @@ export function ResourceHubApp({ onClose, onNotice }: { onClose: () => void; onN
         return (
             <span className="rh-avatar" style={{ width: size, height: size }}>
                 {url
-                    // eslint-disable-next-line @next/next/no-img-element
                     ? <img src={url} alt="" width={size} height={size} />
                     : <DefaultPixelAvatar size={size} />}
             </span>
@@ -722,7 +721,6 @@ export function ResourceHubApp({ onClose, onNotice }: { onClose: () => void; onN
     const renderEntryRow = (entry: ShareIndexEntry, showFolder = false, flowers?: number | "loading") => (
         <button key={entry.path} className="rh-entry" onClick={() => { setActiveEntry(entry); setSelectedFile(entry.files[0] ?? null); }}>
             {entry.images.length > 0 ? (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img className="rh-entry-thumb" src={resolveResourceHubAssetUrl(source, entry.images[0])} alt="" loading="lazy" />
             ) : (
                 <span className="rh-entry-thumb rh-entry-thumb-blank">📄</span>
@@ -1031,7 +1029,6 @@ export function ResourceHubApp({ onClose, onNotice }: { onClose: () => void; onN
                                             style={{ cursor: "pointer" }}
                                             onClick={e => { e.stopPropagation(); setPreviewImage(url); }}
                                         >
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img src={url} alt="" loading="lazy" />
                                         </div>
                                     );

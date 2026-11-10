@@ -418,7 +418,6 @@ export function MixMaterialEditor({ kind, initial, onSave, onCancel }: EditorPro
                 <Field label="封面图" hint="对局背景，强烈建议配">
                     <div className="mix-cover-picker">
                         {cover ? (
-                            // eslint-disable-next-line @next/next/no-img-element
                             <img className="mix-cover-preview" src={cover} alt="封面" />
                         ) : (
                             <div className="mix-cover-preview" />

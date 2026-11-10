@@ -142,7 +142,6 @@ function validateGeneratedHtml(html: string, fileLabel: string): string | null {
         const code = match[2] ?? "";
         if (!code.trim()) continue;
         try {
-            // eslint-disable-next-line no-new-func
             new Function(code);
         } catch (error) {
             const line = html.slice(0, match.index).split("\n").length;

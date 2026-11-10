@@ -60,7 +60,7 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = TTS_
         return await httpFetch(url, { ...init, signal: controller.signal });
     } catch (e) {
         if (e instanceof DOMException && e.name === "AbortError") {
-            throw new Error(`语音合成超时（超过 ${Math.round(timeoutMs / 1000)} 秒无响应）`);
+            throw new Error(`语音合成超时（超过 ${Math.round(timeoutMs / 1000)} 秒无响应）`, { cause: e });
         }
         throw e;
     } finally {

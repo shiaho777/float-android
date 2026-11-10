@@ -43,9 +43,9 @@ const db = new ReadingDB();
 // ── In-memory cache ──
 
 let _booksCache: Book[] | null = null;
-let _chaptersCache: Map<string, BookChapter[]> = new Map();
-let _progressCache: Map<string, ReadingProgress> = new Map();
-let _annotationsCache: Map<string, ReadingAnnotation[]> = new Map(); // key: bookId:chapterIndex
+const _chaptersCache: Map<string, BookChapter[]> = new Map();
+const _progressCache: Map<string, ReadingProgress> = new Map();
+const _annotationsCache: Map<string, ReadingAnnotation[]> = new Map(); // key: bookId:chapterIndex
 
 const READING_INTERACTION_CONFIG_KEY = "ai_phone_reading_interaction_config_v1";
 registerKvMigration(READING_INTERACTION_CONFIG_KEY);

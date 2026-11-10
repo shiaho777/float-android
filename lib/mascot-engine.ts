@@ -564,7 +564,7 @@ async function callMascotText(
 
         const request = buildProviderRequest(apiConfig, null, messages);
         const response = await fetchLlmPayload(request, { signal: options?.signal });
-        if (!response.ok) throw new Error(`API ${response.status}: ${await response.text()}`);
+        if (!response.ok) throw new Error(`API ${response.status}: ${await response.text()}`, { cause: streamError });
         const data = await response.json();
         const parsed = parseProviderResponse(request.providerKind, data);
         raw = parsed.content || "";
@@ -605,77 +605,73 @@ async function callMascotNative(
         ...(await historyToNativeMessages(history)),
     ];
 
+    let result: LLMToolRequestResult;
     try {
-        let result: LLMToolRequestResult;
-        try {
-            result = await sendLLMToolStreamRequest(
-                apiConfig,
-                null,
-                messages,
-                tools,
-                [],
-                { characterName: "小卷", userName: "用户" },
-                { appId: "mascot", signal: options?.signal },
-                {
-                    async onDelta(delta) {
-                        await options?.callbacks?.onAssistantDelta?.(delta);
-                    },
-                    async onReasoningDelta(delta) {
-                        await options?.callbacks?.onReasoningDelta?.(delta);
-                    },
-                    async onToolCallStart(info) {
-                        const mappedName = nameMap.get(info.name) || info.name;
-                        const shownName = mappedName.startsWith("_loader:")
-                            ? `展开${MASCOT_TOOL_PACKAGES.find((pkg) => pkg.id === mappedName.slice("_loader:".length))?.label || "工具集"}`
-                            : mappedName;
-                        await options?.callbacks?.onToolCallStart?.({
-                            id: info.id,
-                            name: shownName,
-                            index: info.index,
-                            protocol: "native",
-                        });
-                    },
+        result = await sendLLMToolStreamRequest(
+            apiConfig,
+            null,
+            messages,
+            tools,
+            [],
+            { characterName: "小卷", userName: "用户" },
+            { appId: "mascot", signal: options?.signal },
+            {
+                async onDelta(delta) {
+                    await options?.callbacks?.onAssistantDelta?.(delta);
                 },
-            );
-        } catch (streamError) {
-            if (options?.signal?.aborted) throw streamError;
-            await options?.callbacks?.onStreamFallback?.(formatErrorMessage(streamError));
+                async onReasoningDelta(delta) {
+                    await options?.callbacks?.onReasoningDelta?.(delta);
+                },
+                async onToolCallStart(info) {
+                    const mappedName = nameMap.get(info.name) || info.name;
+                    const shownName = mappedName.startsWith("_loader:")
+                        ? `展开${MASCOT_TOOL_PACKAGES.find((pkg) => pkg.id === mappedName.slice("_loader:".length))?.label || "工具集"}`
+                        : mappedName;
+                    await options?.callbacks?.onToolCallStart?.({
+                        id: info.id,
+                        name: shownName,
+                        index: info.index,
+                        protocol: "native",
+                    });
+                },
+            },
+        );
+    } catch (streamError) {
+        if (options?.signal?.aborted) throw streamError;
+        await options?.callbacks?.onStreamFallback?.(formatErrorMessage(streamError));
 
-            const fallbackRequest = buildProviderRequest(apiConfig, null, messages, { tools });
-            const response = await fetchLlmPayload(fallbackRequest, { signal: options?.signal });
-            if (!response.ok) throw new Error(`API ${response.status}: ${await response.text()}`);
-            const data = await response.json();
-            const parsed = parseProviderResponse(fallbackRequest.providerKind, data);
-            result = {
-                content: parsed.content,
-                reasoning: parsed.reasoning,
-                openRouterReasoningDetails: parsed.openRouterReasoningDetails,
-                toolCalls: parsed.toolCalls,
-                rawResponse: JSON.stringify({ content: parsed.content, toolCalls: parsed.toolCalls, raw: parsed.raw }),
-                providerKind: fallbackRequest.providerKind,
-                usage: parsed.usage,
-            };
-        }
-
-        const { toolFetches: nativeToolFetches, toolCalls: nativeToolCalls } = mapMascotNativeCalls(result.toolCalls, nameMap);
-        const parsedText = buildMascotTextResponse(result.content || "");
-        const hasTextProtocolCalls = parsedText.toolFetches.length > 0 || parsedText.toolCalls.length > 0;
-        const reply = hasTextProtocolCalls
-            ? parsedText.reply
-            : (result.content || "").trim().split(/\n{2,}/).map((s) => s.trim()).filter(Boolean);
-        return {
-            reply,
-            rawAssistant: result.content || "",
-            toolFetches: [...nativeToolFetches, ...parsedText.toolFetches],
-            toolCalls: [...nativeToolCalls, ...parsedText.toolCalls],
-            nativeToolCalls: result.toolCalls,
-            reasoning: result.reasoning,
-            openRouterReasoningDetails: result.openRouterReasoningDetails,
-            protocol: "native",
+        const fallbackRequest = buildProviderRequest(apiConfig, null, messages, { tools });
+        const response = await fetchLlmPayload(fallbackRequest, { signal: options?.signal });
+        if (!response.ok) throw new Error(`API ${response.status}: ${await response.text()}`, { cause: streamError });
+        const data = await response.json();
+        const parsed = parseProviderResponse(fallbackRequest.providerKind, data);
+        result = {
+            content: parsed.content,
+            reasoning: parsed.reasoning,
+            openRouterReasoningDetails: parsed.openRouterReasoningDetails,
+            toolCalls: parsed.toolCalls,
+            rawResponse: JSON.stringify({ content: parsed.content, toolCalls: parsed.toolCalls, raw: parsed.raw }),
+            providerKind: fallbackRequest.providerKind,
+            usage: parsed.usage,
         };
-    } catch (err) {
-        throw err;
     }
+
+    const { toolFetches: nativeToolFetches, toolCalls: nativeToolCalls } = mapMascotNativeCalls(result.toolCalls, nameMap);
+    const parsedText = buildMascotTextResponse(result.content || "");
+    const hasTextProtocolCalls = parsedText.toolFetches.length > 0 || parsedText.toolCalls.length > 0;
+    const reply = hasTextProtocolCalls
+        ? parsedText.reply
+        : (result.content || "").trim().split(/\n{2,}/).map((s) => s.trim()).filter(Boolean);
+    return {
+        reply,
+        rawAssistant: result.content || "",
+        toolFetches: [...nativeToolFetches, ...parsedText.toolFetches],
+        toolCalls: [...nativeToolCalls, ...parsedText.toolCalls],
+        nativeToolCalls: result.toolCalls,
+        reasoning: result.reasoning,
+        openRouterReasoningDetails: result.openRouterReasoningDetails,
+        protocol: "native",
+    };
 }
 
 // ── 主入口 ────────────────────────────────────────────

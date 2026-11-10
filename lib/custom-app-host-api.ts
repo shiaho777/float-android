@@ -810,7 +810,7 @@ async function withOptionalCustomAppTimeout<T>(
     return result;
   } catch (err) {
     if (controller.signal.aborted) {
-      throw new Error(`${label} 超时（超过 ${Math.ceil(timeoutMs / 1000)} 秒）`);
+      throw new Error(`${label} 超时（超过 ${Math.ceil(timeoutMs / 1000)} 秒）`, { cause: err });
     }
     throw err;
   } finally {
@@ -1566,7 +1566,7 @@ export async function fetchCustomAppNetwork(app: InstalledCustomApp, record: Rec
         throw new Error(
           nativeDirect
             ? `network.fetch 请求失败（原生直连）：${err instanceof Error ? err.message : String(err)}`
-            : `network.fetch 直连失败，可能是目标接口未开放 CORS 或被浏览器拦截。确实需要服务端代理时请传 proxy: true。原始错误：${err instanceof Error ? err.message : String(err)}`,
+            : `network.fetch 直连失败，可能是目标接口未开放 CORS 或被浏览器拦截。确实需要服务端代理时请传 proxy: true。原始错误：${err instanceof Error ? err.message : String(err)}`, { cause: err }
         );
       }
     });
