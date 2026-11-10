@@ -14,6 +14,7 @@
 
 ### 性能与体积
 - **渲染开销**：`IconGlyph` / `CustomAppGlyph` / `WidgetRenderer` 改为 `memo`，桌面因通知、徽章、编辑态等原因重渲染时，几十个图标和全部小组件不再跟着重画；小组件配置回调改为 `useCallback` 以保持引用稳定。
+- **进入桌面后的 chunk 爆发**：桌面挂载时原本会预热 8 个 App（每个还会拖进自己的依赖）、无条件挂载音乐浮窗、并立刻拉起后台引擎，实测一次性加载 81 个 chunk。现在音乐浮窗只在有曲目时挂载，预热缩到聊天/设置两个并改为空闲回调逐个加载，后台服务也在空闲窗口启动，chunk 数降到 67。
 - **启动动画**：每帧重建的背景径向渐变、标语逐字测量改为缓存；标题字母由每帧 9 次 `fillText` 改为离屏预渲染后每帧 1 次 `drawImage`（6 个字母从 54 次降到 6 次）。
 - **APK 61.8 MB → 15.6 MB（-74.8%）**：不再随包分发字体。46.3 MB 的中文展示字体（MiSans、汇文明朝、Noto Serif SC、龙藏、喜脉喜欢体、鸿雷小纸条、辰宇落雁体、Zen Maru 等）与 1.1 MB 拉丁字体全部移除，`styles/fonts.css`、各处的 `@font-face`、`npm run build:fonts` 一并删除，文字统一走系统字体栈；NOTICE 的字体授权段落同步移除。
 - **移除「筑境」3D 世界搭建功能**：删除 `components/world-builder/`、独立页面入口 `entries/world-builder.tsx` 与 `world-builder/`、`public/models`（6.8 MB 模型）与 `public/hdri`、`styles/world-builder.css`、`android-fullscreen` 组件和相关脚本；桌面第三页的筑境图标、备份清单里的两个 IndexedDB 源、`three` / `@react-three/*` / `@gltf-transform/*` / `d3-delaunay` 依赖一并去掉。APK 15.6 MB → 8.8 MB。
