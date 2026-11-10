@@ -13,13 +13,18 @@ import {
     loadMomentsConfig,
 } from "./moments-storage";
 import { loadChatContacts, loadChatSessions, loadChatMessages, createOrGetSession, addChatContact } from "./chat-storage";
-import { parseAndSaveResponse } from "./follow-up-service";
 import { loadCharacters } from "./character-storage";
 import { clearRequestsForCharacter, dispatchFriendRequestUpdated } from "./friend-request-storage";
 import { sendBrowserNotification } from "./browser-notification";
 import type { MomentPost, MomentComment } from "./moments-types";
-import { attachMomentPhotoInBackground, parseMomentPostResponse } from "./moments-engine";
 import { isAbortError, throwIfAborted } from "./abort-utils";
+
+// 这两个模块分别拉进 chat-engine / tool-executor / 生图服务，合计几百 KB。
+// 派发动作本身是低频异步路径，用懒加载把它们挡在启动包之外。
+let followUpModule: Promise<typeof import("./follow-up-service")> | null = null;
+let momentsEngineModule: Promise<typeof import("./moments-engine")> | null = null;
+const loadFollowUp = () => (followUpModule ??= import("./follow-up-service"));
+const loadMomentsEngine = () => (momentsEngineModule ??= import("./moments-engine"));
 
 // ── Types ──
 
@@ -289,6 +294,7 @@ function resolveActionCharacterName(action: ActionTag, context: ActionContext): 
 async function dispatchMomentsPost(action: ActionTag, context: ActionContext): Promise<void> {
     // Re-wrap content in [朋友圈]...[/朋友圈] so parseMomentPostResponse can parse it
     const wrapped = `[朋友圈]${action.content}[/朋友圈]`;
+    const { parseMomentPostResponse } = await loadMomentsEngine();
     const parsed = parseMomentPostResponse(wrapped);
     if (!parsed) {
         console.warn("[ActionParser] Failed to parse moments post content");
@@ -325,6 +331,7 @@ async function dispatchMomentsPost(action: ActionTag, context: ActionContext): P
     }
 
     if (parsed.photoDescription) {
+        const { attachMomentPhotoInBackground } = await loadMomentsEngine();
         attachMomentPhotoInBackground(post.id, parsed.photoDescription, context.characterId, parsed.photoUseReferenceImage === true, context.signal);
     }
 
@@ -406,6 +413,7 @@ async function dispatchChatMessage(action: ActionTag, context: ActionContext): P
     ensureCharacterChatContact(context.characterId);
     const session = createOrGetSession(context.characterId);
     // 统一后台保存流程：分条、拍一拍、状态栏、生图、横幅+系统弹窗全与聊天一致
+    const { parseAndSaveResponse } = await loadFollowUp();
     await parseAndSaveResponse(action.content, session.id, 0, undefined, loadChatMessages(session.id));
 
     console.log(`[ActionParser] Sent chat message from ${context.sourceEngine} engine`);
@@ -419,6 +427,7 @@ async function dispatchPrivateMessage(action: ActionTag, context: ActionContext)
 
     ensureCharacterChatContact(context.characterId);
     const session = createOrGetSession(context.characterId);
+    const { parseAndSaveResponse } = await loadFollowUp();
     await parseAndSaveResponse(action.content, session.id, 0, undefined, loadChatMessages(session.id));
 
     console.log(`[ActionParser] Sent private message from "${action.actor}" via ${context.sourceEngine} engine`);
@@ -444,6 +453,7 @@ async function dispatchGroupChatMessage(action: ActionTag, context: ActionContex
     }
 
     console.log("[ActionParser]", `MATCH: "${groupSession.groupName}" id=${groupSession.id}`);
+    const { parseAndSaveResponse } = await loadFollowUp();
     await parseAndSaveResponse(action.content, groupSession.id, 0, undefined, loadChatMessages(groupSession.id), {
         senderCharacterId: context.characterId,
         senderName: loadCharacters().find(c => c.id === context.characterId)?.name,

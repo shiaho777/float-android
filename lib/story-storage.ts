@@ -1,5 +1,5 @@
 import Dexie from "dexie";
-import { formatChatTimestamp } from "./llm-prompt-assembler";
+import { formatPromptTimestamp } from "./prompt-time";
 import { trackWrite } from "./pending-writes";
 import { hydrateKvDb, kvGet, kvSet, registerKvMigration } from "./kv-db";
 
@@ -964,7 +964,7 @@ export function loadStoryProjectionEntries(
     const summaryText = compactProjectionText(current.storySummary, 500);
     if (!summaryText) continue;
 
-    const ts = formatChatTimestamp(current.createdAt);
+    const ts = formatPromptTimestamp(current.createdAt);
     projections.push({
       id: `story_projection_${current.id}`,
       timestamp: current.createdAt,

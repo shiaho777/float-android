@@ -1,7 +1,6 @@
 import type { ImageGenerationSettings, NovelAiPreset } from "./settings-types";
 import { loadBindingConfig, loadImageGenerationSettings, resolveBinding, DEFAULT_NOVELAI_PRESET } from "./settings-storage";
 import { applyImageGenerationBinding } from "./image-generation-binding";
-import JSZip from "jszip";
 import { getChatImageFromIndexedDB } from "./chat-asset-storage";
 import { storeMediaBlob } from "./media-cache-storage";
 import { throwIfAborted } from "./abort-utils";
@@ -412,6 +411,8 @@ async function parseNovelAiImageResponse(res: Response): Promise<ImageGeneration
     || (res.headers.get("content-type") || "").toLowerCase().includes("zip");
 
   if (isZip) {
+    // jszip 约 95KB，只有 NovelAI 返回 zip 时才需要，别让它进启动包
+    const { default: JSZip } = await import("jszip");
     const zip = await JSZip.loadAsync(arrayBuf);
     const files = Object.keys(zip.files);
     const pngFile = files.find(f => f.endsWith(".png")) || files[0];

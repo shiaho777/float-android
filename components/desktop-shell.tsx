@@ -3,9 +3,6 @@
 import { Component, lazy, memo, Suspense, useCallback, useEffect, useInsertionEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ErrorInfo, type ReactNode } from "react";
 
 import { updateStatusBarTone } from "@/lib/bg-tone";
-import { startDiaryEntryTimerService, stopDiaryEntryTimerService } from "@/lib/diary-entry-timer-service";
-import { startFollowUpService, stopFollowUpService } from "@/lib/follow-up-service";
-import { startMomentsService, stopMomentsService } from "@/lib/moments-engine";
 import { bgTimerCleanup } from "@/lib/bg-timer";
 import { isNativeApp } from "@/lib/download-utils";
 import { isPhoneShellMobile } from "@/lib/shell-layout-mode";
@@ -48,11 +45,6 @@ import {
   loadInstalledCustomApps,
   type CustomAppIconStyle,
 } from "@/lib/custom-app-storage";
-import {
-  CUSTOM_APP_HOST_STATE_UPDATED_EVENT,
-  loadCustomAppBadges,
-  runDueCustomAppTasks,
-} from "@/lib/custom-app-host-api";
 import { CustomAppGlyph, IconGlyph } from "@/components/icon-glyph";
 import { Capacitor } from "@capacitor/core";
 import { App as CapacitorApp } from "@capacitor/app";
@@ -98,7 +90,6 @@ import { QuickActionFloat } from "@/components/quick-action-float";
 import { CHAT_MESSAGE_PUSHED_EVENT, CHAT_REQUEST_REPLY_EVENT, findChatSessionById, hydrateChatStorage, loadChatSessions, peekChatSessions, pushChatMessage, type ChatMessage, type ChatSession } from "@/lib/chat-storage";
 import { ensureGlobalBindingDefaults, resolveUserIdentity } from "@/lib/settings-storage";
 import { loadCharacters } from "@/lib/character-storage";
-import { requestBackgroundChatReply } from "@/lib/follow-up-service";
 import { CHAT_MESSAGE_NOTICE_EVENT, CHAT_OPEN_SESSION_EVENT, type ChatMessageNoticeDetail } from "@/lib/chat-notification-events";
 import { startIncomingCallVibration } from "@/lib/call-vibration";
 import { installChatSoundListener, playChatSoundOnce, setMiniChatSoundSessionId, startChatSoundLoop } from "@/lib/chat-sound";
@@ -106,7 +97,6 @@ import { setMascotContext } from "@/lib/mascot-context";
 import { DESKTOP_WIDGETS_CHANGED_EVENT } from "@/lib/mascot-events";
 import { sendBrowserNotification } from "@/lib/browser-notification";
 import type { ChatSharePayload } from "@/lib/chat-share";
-import { completePendingMcpOAuthCallback } from "@/lib/tool-executor";
 import { LayoutGrid, LoaderCircle, RefreshCw } from "lucide-react";
 
 // ── App 组件按需加载 ──
@@ -1633,10 +1623,20 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
   }, []);
 
   useEffect(() => {
-    const refreshHostState = () => setCustomAppBadges(loadCustomAppBadges());
-    refreshHostState();
-    window.addEventListener(CUSTOM_APP_HOST_STATE_UPDATED_EVENT, refreshHostState);
-    return () => window.removeEventListener(CUSTOM_APP_HOST_STATE_UPDATED_EVENT, refreshHostState);
+    // custom-app-host-api 与 tool-executor 体积不小，桌面首帧用不到，按需加载
+    let cancelled = false;
+    let detach: (() => void) | undefined;
+    void import("@/lib/custom-app-host-api").then(({ CUSTOM_APP_HOST_STATE_UPDATED_EVENT, loadCustomAppBadges }) => {
+      if (cancelled) return;
+      const refreshHostState = () => setCustomAppBadges(loadCustomAppBadges());
+      refreshHostState();
+      window.addEventListener(CUSTOM_APP_HOST_STATE_UPDATED_EVENT, refreshHostState);
+      detach = () => window.removeEventListener(CUSTOM_APP_HOST_STATE_UPDATED_EVENT, refreshHostState);
+    }).catch(error => console.warn("[Desktop] custom app host state unavailable:", error));
+    return () => {
+      cancelled = true;
+      detach?.();
+    };
   }, []);
 
   useEffect(() => {
@@ -1741,7 +1741,8 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
     let canceled = false;
     const runTasks = () => {
       if (canceled) return;
-      void runDueCustomAppTasks(setNotice).then(count => {
+      void import("@/lib/custom-app-host-api").then(async ({ runDueCustomAppTasks, loadCustomAppBadges }) => {
+        const count = await runDueCustomAppTasks(setNotice);
         if (count > 0) setCustomAppBadges(loadCustomAppBadges());
       }).catch(error => {
         console.warn("[CustomAppTasks] failed", error);
@@ -1770,6 +1771,7 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
   useEffect(() => {
     let cancelled = false;
     let servicesStarted = false;
+    let stops: Array<() => void> = [];
 
     void (async () => {
       try {
@@ -1804,18 +1806,29 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
       }
 
       if (cancelled) return;
-      startFollowUpService();
-      startMomentsService();
-      startDiaryEntryTimerService();
-      servicesStarted = true;
+      // 这三个引擎经 chat-engine / tool-executor 串起约 600KB 代码，
+      // 首帧并不需要，等存储水合完成后再按需加载。
+      try {
+        const [followUp, moments, diary] = await Promise.all([
+          import("@/lib/follow-up-service"),
+          import("@/lib/moments-engine"),
+          import("@/lib/diary-entry-timer-service"),
+        ]);
+        if (cancelled) return;
+        followUp.startFollowUpService();
+        moments.startMomentsService();
+        diary.startDiaryEntryTimerService();
+        stops = [followUp.stopFollowUpService, moments.stopMomentsService, diary.stopDiaryEntryTimerService];
+        servicesStarted = true;
+      } catch (error) {
+        console.warn("[Desktop] background services failed to start:", error);
+      }
     })();
 
     return () => {
       cancelled = true;
       if (servicesStarted) {
-        stopFollowUpService();
-        stopMomentsService();
-        stopDiaryEntryTimerService();
+        for (const stop of stops) stop();
       }
       bgTimerCleanup();
     };
@@ -2141,7 +2154,7 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
 
   useEffect(() => {
     let cancelled = false;
-    void completePendingMcpOAuthCallback().then((result) => {
+    void import("@/lib/tool-executor").then(({ completePendingMcpOAuthCallback }) => completePendingMcpOAuthCallback()).then((result) => {
       if (cancelled || !result.completed) return;
       if (result.success) {
         setNotice(result.serverName ? `${result.serverName} 授权成功` : "MCP 授权成功");
@@ -2476,7 +2489,9 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#121110;color:rgb
       window.setTimeout(() => {
         if (detail.handled) return;
         detail.handled = true;
-        void requestBackgroundChatReply(sessionId);
+        void import("@/lib/follow-up-service")
+          .then(({ requestBackgroundChatReply }) => requestBackgroundChatReply(sessionId))
+          .catch(error => console.warn("[Desktop] background reply failed:", error));
       }, 0);
     };
 

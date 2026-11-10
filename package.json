@@ -11,7 +11,8 @@
     "check:sdk": "node scripts/check-custom-app-sdk-consistency.mjs",
     "build:glass-icons": "node scripts/build-glass-icons.mjs",
     "lint": "eslint .",
-    "build:brand-assets": "node scripts/generate-brand-assets.mjs"
+    "build:brand-assets": "node scripts/generate-brand-assets.mjs",
+    "build:fonts": "node scripts/subset-fonts.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.9",

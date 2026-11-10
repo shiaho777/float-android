@@ -1,6 +1,6 @@
 import { BLACK_MARKET_BUILTIN_THEATERS } from "./black-market-builtins";
 import { kvGet, kvKeysWithPrefix, kvSet, registerDynamicPrefix, registerKvMigration } from "./kv-db";
-import { formatChatTimestamp } from "./llm-prompt-assembler";
+import { formatPromptTimestamp } from "./prompt-time";
 import type {
   ActiveBlackMarketTheater,
   BlackMarketCheckinResult,
@@ -636,7 +636,7 @@ export function recordBlackMarketTheaterProjectionEvent(input: {
   const summary = cleanText(input.summary, 2400);
   if (!summary) return null;
   const timestamp = input.timestamp || new Date().toISOString();
-  const time = formatChatTimestamp(timestamp);
+  const time = formatPromptTimestamp(timestamp);
   const characterName = cleanText(input.characterName, 80) || "角色";
   const userName = cleanText(input.userName, 80) || "用户";
   const theaterTitle = cleanText(input.theaterTitle, 80) || "未命名小剧场";
