@@ -3483,7 +3483,8 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
   handleThemeDesktopChangeRef.current = handleThemeDesktopChange;
   applyThemeRef.current = applyTheme;
 
-  function handleWidgetConfigChange(widgetId: string, config: Record<string, unknown>): void {
+  // 引用要保持稳定，否则 memo 过的 WidgetRenderer 每次桌面重渲染都会失效
+  const handleWidgetConfigChange = useCallback((widgetId: string, config: Record<string, unknown>): void => {
     setWidgets((prev) => {
       const next = prev.map((w) =>
         w.id === widgetId ? { ...w, config: { ...w.config, ...config } } : w
@@ -3491,7 +3492,7 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
       saveWidgets(next);
       return next;
     });
-  }
+  }, []);
 
   // 小卷（内置助手）写入组件/DIY 模板后通知桌面重新水合，实现实时热更新。
   // 拖拽进行中不能换底层数组（会打断 FLIP 和落点计算），先挂起，退出编辑模式后补一次。

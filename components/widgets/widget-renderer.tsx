@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { memo, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import type { WidgetInstance, WidgetType } from "@/lib/widget-types";
 import { WIDGET_SIZE_CELLS, WIDGET_CATALOG } from "@/lib/widget-types";
@@ -22,7 +22,7 @@ type WidgetRendererProps = {
   onConfigChange?: (widgetId: string, config: Record<string, unknown>) => void;
 };
 
-export function WidgetRenderer({ widget, preview, onConfigChange }: WidgetRendererProps) {
+function WidgetRendererImpl({ widget, preview, onConfigChange }: WidgetRendererProps) {
   const [rows, cols] = WIDGET_SIZE_CELLS[widget.size];
   const sizeClass = `widget-${widget.size}`;
   const isKawaii = ["kawaiiCat", "kawaiiBubble", "kawaiiWeather", "kawaiiDate", "kawaiiBattery", "kawaiiMusicIcon"].includes(widget.type);
@@ -2130,3 +2130,6 @@ function PostcardWidget({ config, widgetId, onConfigChange, preview }: any) {
 
   );
 }
+
+// 桌面重渲染（通知、徽章、编辑态等）很频繁，组件本体没变就不要重画。
+export const WidgetRenderer = memo(WidgetRendererImpl);
