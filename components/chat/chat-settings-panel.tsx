@@ -640,7 +640,7 @@ export function ChatSettingsPanel({
         try {
             const blob = await createChatRecordExport(session, characterName);
             const safeName = characterName.replace(/[\\/:*?"<>|]+/g, "-").slice(0, 40) || "聊天";
-            await downloadFile(blob, `Float-${safeName}-聊天记录.json`);
+            await downloadFile(blob, `Pneuma-${safeName}-聊天记录.json`);
             setChatTransferStatus({ success: true, message: `已导出 ${loadChatMessages(session.id).length} 条消息。` });
         } catch (error) {
             setChatTransferStatus({ success: false, message: error instanceof Error ? error.message : "导出失败" });

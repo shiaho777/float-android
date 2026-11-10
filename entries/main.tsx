@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 
 import { installWriteFlushListeners } from "@/lib/pending-writes";
 import { installShellLayoutMode } from "@/lib/shell-layout-mode";
+import { migrateLegacyLocalStorageKeys } from "@/lib/legacy-brand-migration";
 import { ChatPluginBootstrap } from "@/components/chat-plugin-bootstrap";
 import { ChatReasoningVisibilityController } from "@/components/chat-reasoning-visibility-controller";
 import { PWAManifestInjector } from "@/components/pwa-manifest-injector";
@@ -12,6 +13,9 @@ import { MainApp } from "@/components/main-app";
 
 import "../styles/fonts.css";
 import "../app/globals.css";
+
+// Float 时代的 localStorage 键搬到 Pneuma 键名，须在任何模块读取前完成
+migrateLegacyLocalStorageKeys();
 
 // 页面隐藏/被杀前把在途 IndexedDB 写事务排空（缩掉丢数据窗口）
 installWriteFlushListeners();

@@ -282,7 +282,7 @@ export function MemoryBankPage({
         const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
         await downloadFile(
             new Blob([exportMemoryRecallLog()], { type: "application/json" }),
-            `float-memory-log-${stamp}.json`,
+            `pneuma-memory-log-${stamp}.json`,
         );
     }, []);
 

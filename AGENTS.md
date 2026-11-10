@@ -17,7 +17,7 @@ Instructions for coding agents working in this repository.
 | `components/` | React UI tree — chat, desktop, settings, check-phone simulated apps, findmy, moments, games, etc. (~6.8 MB, dense codebase; read neighbors before adding). |
 | `lib/` | Business logic layer (~268 modules): Dexie/IndexedDB stores, LLM adapter, prompt assembler, engines (chat/group-chat/memory/presence/dwelling/checkphone), importer, backup. |
 | `styles/components.css` | Single design-token CSS file shared by all components (`dl-*`, `ap-*`, `fi-*`, `cp-*` families). Reuse existing classes before inventing new ones. |
-| `android/` | Capacitor Android project. Native plugins/services live in `android/app/src/main/java/app/floatphone/app/`. |
+| `android/` | Capacitor Android project. Native plugins/services live in `android/app/src/main/java/app/pneuma/app/`. |
 | `ios/` | Capacitor iOS project (Xcode). No custom native plugins yet — Android-only plugins degrade via the `lib/` wrapper fallbacks (see the dual-platform contract). |
 | `custom-apps/` | Built-in user apps installed through the Custom App SDK. |
 | `app-store-apps/` | Extra apps for the in-app market. |
@@ -37,7 +37,7 @@ Vite multi-page build (vite.config.ts)
   → npx cap sync android → Android WebView shell (MainActivity)
 
 WebView page
-  → Capacitor bridge → native plugins (Java/Kotlin under android/app/.../app/floatphone/app/)
+  → Capacitor bridge → native plugins (Java/Kotlin under android/app/.../app/pneuma/app/)
   → Dexie/IndexedDB (all app data, per-entity tables)
   → user-configured third-party APIs (LLM / image / voice / music / map tiles)
 
@@ -113,7 +113,7 @@ The web core (`components/`, `lib/`, `entries/`, `styles/`) is shared and must s
 
 ### Delivery (Issue + PR + CI)
 
-Default target: [shiaho777/float-android](https://github.com/shiaho777/float-android). Prefer a pull request over direct pushes to `main` when delivering code.
+Default target (Pneuma): [shiaho777/pneuma-android](https://github.com/shiaho777/pneuma-android). Prefer a pull request over direct pushes to `main` when delivering code.
 
 **Language (required):** GitHub **Issues and PRs must be written in English** — titles, bodies, labels text you author, and delivery comments on the Issue/PR. Local chat with the user may be Chinese or any language; do not copy that language into Issue/PR text.
 
@@ -128,10 +128,10 @@ PR bodies follow `.github/pull_request_template.md` and must include `Fixes #N` 
 Releases are GitHub Releases built from `main`:
 
 1. Bump `versionName` in `android/app/build.gradle` and `version` in `package.json` to the new `X.Y.Z`; bump `versionCode` by 1 (Android treats upgrades by `versionCode`; a debug build can replace the previous one only when this number goes up and the debug certificate matches).
-2. Publish a notes-only tag on `main`. Do not attach an APK: `gh release create vX.Y.Z --repo shiaho777/float-android --target main --title "Float vX.Y.Z" --notes "…"`.
-3. People install by forking and running **Build Android Shell APK** (see README). The artifact and the file inside it are named `float-android-<versionName>.apk`, from `versionName` in `android/app/build.gradle` (GitHub downloads that artifact as a zip). It is a release APK. Forks have no private release key, so the workflow signs it with `android/app/debug.keystore`; that shared certificate is what lets a later build replace the previous one. A machine with `android/keystore.properties` still signs `assembleRelease` with that private key. The other shipping path is the static website: hosts serve `out/` (see README). That site is not a GitHub Release asset.
-4. To re-spin the same version, delete and recreate the release and tag at the new commit: `gh release delete vX.Y.Z --cleanup-tag`, then the same `gh release create` line, still with no APK asset.
+2. Build the release APK from that `main` commit (run **Build Android Shell APK** and unzip the artifact, or `npm run build:apk && cd android && ./gradlew assembleRelease`). The file is named `pneuma-android-<versionName>.apk`, from `versionName` in `android/app/build.gradle`. Without `android/keystore.properties` it is signed with the shared `android/app/debug.keystore`; keep every published APK on the same certificate so each release can replace the previous one.
+3. Publish the release with the APK attached: `gh release create vX.Y.Z pneuma-android-X.Y.Z.apk --repo shiaho777/pneuma-android --target main --title "Pneuma vX.Y.Z" --notes "…"`. Pneuma ships APKs directly; users download them from Releases. The other shipping path is the static website: hosts serve `out/` (see README).
+4. To re-spin the same version, delete and recreate the release and tag at the new commit: `gh release delete vX.Y.Z --cleanup-tag`, rebuild the APK, then the same `gh release create` line.
 
-The in-app updater (设置 → 关于与声明) only lists a release that has an `.apk` asset. Notes-only tags do not show up there. Do not add an APK asset to bring it back.
+The in-app updater (设置 → 关于与声明) only lists a release that has an `.apk` asset, so every release must carry one.
 
 iOS distribution is separate: Xcode Archive → TestFlight → App Store. There is no in-app updater on iOS (Apple Guideline 2.5.2); the About page hides the update center there. Keep `ios/` version (`MARKETING_VERSION`/`CURRENT_PROJECT_VERSION`) in step with the same `X.Y.Z` bump when shipping.

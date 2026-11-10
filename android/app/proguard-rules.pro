@@ -22,7 +22,7 @@
 
 # Capacitor 插件通过注解/反射注册，R8 需要保留
 -keep class com.getcapacitor.** { *; }
--keep class app.floatphone.app.** { *; }
+-keep class app.pneuma.app.** { *; }
 -keepclassmembers class * {
     @com.getcapacitor.annotation.* <methods>;
 }

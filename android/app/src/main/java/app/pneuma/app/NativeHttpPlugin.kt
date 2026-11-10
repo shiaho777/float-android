@@ -1,4 +1,4 @@
-package app.floatphone.app
+package app.pneuma.app
 
 import android.util.Base64
 import com.getcapacitor.JSObject

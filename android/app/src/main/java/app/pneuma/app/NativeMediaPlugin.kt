@@ -1,4 +1,4 @@
-package app.floatphone.app
+package app.pneuma.app
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory

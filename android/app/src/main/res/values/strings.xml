@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">float</string>
-    <string name="title_activity_main">float</string>
-    <string name="package_name">app.floatphone.app</string>
-    <string name="custom_url_scheme">app.floatphone.app</string>
+    <string name="app_name">Pneuma</string>
+    <string name="title_activity_main">Pneuma</string>
+    <string name="package_name">app.pneuma.app</string>
+    <string name="custom_url_scheme">app.pneuma.app</string>
 </resources>

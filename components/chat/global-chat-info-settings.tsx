@@ -260,7 +260,7 @@ export function GlobalChatInfoSettings({ onBack }: { onBack: () => void }) {
                 <div className="theme-section-page flex flex-col gap-3">
                     <div className="menu-group">
                         <div className="menu-item">
-                            <div className="menu-label-group"><span className="menu-label">启用自定义卡片</span><span className="menu-desc">关闭时使用 Float 默认邀请卡片</span></div>
+                            <div className="menu-label-group"><span className="menu-label">启用自定义卡片</span><span className="menu-desc">关闭时使用 Pneuma 默认邀请卡片</span></div>
                             <Toggle checked={draftMeetingInvite.mode === "custom"} onChange={checked => setDraftMeetingInvite(current => ({ ...current, mode: checked ? "custom" : "native" }))} />
                         </div>
                     </div>
@@ -300,7 +300,7 @@ export function GlobalChatInfoSettings({ onBack }: { onBack: () => void }) {
                 <div className="theme-section-page flex flex-col gap-3">
                     <div className="menu-group">
                         <div className="menu-item">
-                            <div className="menu-label-group"><span className="menu-label">启用自定义状态栏</span><span className="menu-desc">关闭时使用 Float 原生状态栏</span></div>
+                            <div className="menu-label-group"><span className="menu-label">启用自定义状态栏</span><span className="menu-desc">关闭时使用 Pneuma 原生状态栏</span></div>
                             <Toggle checked={draftStatus.mode === "custom"} onChange={checked => setDraftStatus(current => ({ ...current, mode: checked ? "custom" : "native" }))} />
                         </div>
                     </div>

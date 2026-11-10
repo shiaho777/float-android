@@ -1,4 +1,4 @@
-package com.getcapacitor.myapp;
+package app.pneuma.app;
 
 import static org.junit.Assert.*;
 

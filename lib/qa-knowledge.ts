@@ -27,7 +27,7 @@ const QA_BASE_KNOWLEDGE_LINES = [
   "- 聊天没有回复 / 报错：优先检查「设置 → API 设置」里 Base URL、API Key、模型名是否正确，余额是否充足；中转站需确认地址以 /v1 结尾与否按服务商要求填写。",
   "- 回复被截断：检查模型的最大输出 token 设置与预设配置。",
   "- 数据存在本机（IndexedDB）。清理站点数据或卸载会丢掉还没导出的内容。安装包每 6 小时备份到系统「文档」目录，Android 需要「所有文件访问」。网页版用 Chrome 或 Edge，在「设置 → 数据管理」里选定文件夹后按同样间隔备份，保留最近 3 份；不能选文件夹时用手动导出。换设备要先导出再导入。",
-  "- 部署只有两种。安装包：Fork 后在 Actions 运行 Build Android Shell APK，下载 float-android- 加版本号，解压安装 float-android-<版本号>.apk，例如 float-android-1.0.2.apk。这是正式构建，用仓库里的共享证书签名。网页：Netlify、Cloudflare Pages、Vercel 或任意静态托管，构建命令 npm run build，发布目录 out，挂在域名根目录。环境变量可以留空。",
+  "- 部署只有两种。安装包：到 GitHub Releases 下载 pneuma-android-<版本号>.apk 安装，应用内「设置 → 关于与声明」可检查更新；也可以 Fork 后在 Actions 运行 Build Android Shell APK 自己构建。网页：Netlify、Cloudflare Pages、Vercel 或任意静态托管，构建命令 npm run build，发布目录 out，挂在域名根目录。环境变量可以留空。",
   "- 网页从浏览器直接请求用户填写的 API，接口需要允许该网站跨域。https 页面上的 http 局域网地址可能被浏览器拦住。生成在页面打开时进行。",
   "- 没有账号门禁，不需要 Supabase。",
   "",

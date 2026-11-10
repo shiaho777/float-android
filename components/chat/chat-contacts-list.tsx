@@ -145,7 +145,6 @@ export function ChatContactsList({ onCloseApp, onSelectSession, onSelectMascot, 
             return a.localeCompare(b);
         });
         return { grouped: map, indexLetters: sorted };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [contacts, deferredContactFilter]);
 
     const handleAccept = async (req: FriendRequest) => {

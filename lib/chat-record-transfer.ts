@@ -13,8 +13,12 @@ type EmbeddedMedia = {
   dataUrl: string;
 };
 
+const CHAT_RECORD_FILE_TYPE = "pneuma-chat-records";
+/** Float 时代导出的聊天记录文件类型，导入时继续认 */
+const LEGACY_CHAT_RECORD_FILE_TYPE = "float-chat-records";
+
 type ChatRecordFile = {
-  type: "float-chat-records";
+  type: typeof CHAT_RECORD_FILE_TYPE;
   version: 1;
   exportedAt: string;
   session: {
@@ -102,7 +106,7 @@ export async function createChatRecordExport(session: ChatSession, name: string)
     }
   }
   const payload: ChatRecordFile = {
-    type: "float-chat-records",
+    type: CHAT_RECORD_FILE_TYPE,
     version: 1,
     exportedAt: new Date().toISOString(),
     session: {
@@ -121,9 +125,10 @@ export async function importChatRecordFile(
   file: File,
   targetSession: ChatSession,
 ): Promise<{ inserted: number; skipped: number; mediaRestored: number }> {
-  const parsed = JSON.parse(await file.text()) as Partial<ChatRecordFile>;
-  if (parsed.type !== "float-chat-records" || parsed.version !== 1 || !Array.isArray(parsed.messages)) {
-    throw new Error("不是有效的 Float 聊天记录文件");
+  const parsed = JSON.parse(await file.text()) as Omit<Partial<ChatRecordFile>, "type"> & { type?: string };
+  const isKnownType = parsed.type === CHAT_RECORD_FILE_TYPE || parsed.type === LEGACY_CHAT_RECORD_FILE_TYPE;
+  if (!isKnownType || parsed.version !== 1 || !Array.isArray(parsed.messages)) {
+    throw new Error("不是有效的 Pneuma 聊天记录文件");
   }
   if (parsed.messages.length > 100_000) throw new Error("聊天记录超过 100000 条，请拆分后再导入");
 

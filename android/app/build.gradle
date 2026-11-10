@@ -8,13 +8,13 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace "app.floatphone.app"
+    namespace "app.pneuma.app"
     compileSdk rootProject.ext.compileSdkVersion
     kotlinOptions {
         jvmTarget = '21'
     }
     defaultConfig {
-        applicationId "app.floatphone.app"
+        applicationId "app.pneuma.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 3

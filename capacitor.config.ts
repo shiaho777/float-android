@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: "app.floatphone.app",
-  appName: "float",
+  appId: "app.pneuma.app",
+  appName: "Pneuma",
   webDir: "out",
   // https scheme:让 WebView 里的请求保持 secure context(IndexedDB/ crypto / SW 行为与网页版一致),
   // 同时 fetch 第三方 API 的 origin 是 https://localhost,主流 LLM 端点的 CORS 均放行。

@@ -1,7 +1,7 @@
 {
-    "name": "float",
-    "short_name": "float",
-    "description": "float",
+    "name": "Pneuma",
+    "short_name": "Pneuma",
+    "description": "Pneuma · AI 虚拟手机",
     "id": "/",
     "start_url": "/",
     "scope": "/",
@@ -30,6 +30,12 @@
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "any"
+        },
+        {
+            "src": "/icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
         }
     ]
 }

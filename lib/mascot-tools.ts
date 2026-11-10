@@ -2040,7 +2040,7 @@ async function handleReadMeetingInviteCard(): Promise<ToolResult> {
         name: NAME,
         success: true,
         data: [
-            `当前模式：${cfg.mode === "custom" ? "自定义 HTML（已启用）" : "Float 默认卡片"}`,
+            `当前模式：${cfg.mode === "custom" ? "自定义 HTML（已启用）" : "Pneuma 默认卡片"}`,
             "",
             "【当前触发契约】",
             cfg.contract.trim() || "（空）",
@@ -2088,7 +2088,7 @@ async function handlePreviewMeetingInviteCard(): Promise<ToolResult> {
     if (!cfg.renderHtml.trim()) return { name: NAME, success: false, error: "当前没有邀请卡片 HTML，请先用 写邀请见面卡片 写入" };
     const { requestMeetingInvitePreview } = await import("./mascot-events");
     const handled = requestMeetingInvitePreview({
-        displayName: cfg.mode === "custom" ? "当前自定义方案" : "Float 默认方案",
+        displayName: cfg.mode === "custom" ? "当前自定义方案" : "Pneuma 默认方案",
         renderHtml: cfg.renderHtml,
         previewRaw: cfg.previewRaw,
     });

@@ -1,4 +1,4 @@
-package app.floatphone.app;
+package app.pneuma.app;
 
 import android.os.Bundle;
 import android.util.Log;

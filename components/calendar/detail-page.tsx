@@ -277,7 +277,6 @@ export function CalendarDetailPage({
       snapTimelineTo(selectedRef.current, false);
       updateRangePill(daysRef.current.indexOf(selectedRef.current));
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [daysPerPage]);
 
   // 时间轴横向滚动：灰胶囊逐帧跟随；索引变化立即联动选中
