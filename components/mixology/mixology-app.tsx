@@ -62,6 +62,7 @@ import { MixologyGame } from "./mixology-game";
 import { AuthorAvatar, KindGlyph, MatCard, MaterialDetail, MixConfirm, MixTagList, SealedNote, formatMixTime } from "./mixology-shared";
 import { MixSlotEditor } from "./slot-editor";
 import { describeMixCondition } from "@/lib/mixology/state";
+import "@/styles/mixology.css";
 
 /** 头像统一压成 192px JPEG dataURL 的小圆图，随发布上云也不占地方 */
 

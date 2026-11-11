@@ -68,6 +68,7 @@ import {
 import { resolveUserIdentity } from "@/lib/settings-storage";
 import { incrementEventCounter } from "@/lib/memory-storage";
 import { maybeRunSummarization } from "@/lib/memory-summarizer";
+import "@/styles/cocreate.css";
 
 type CoCreateAppProps = {
   onClose: () => void;

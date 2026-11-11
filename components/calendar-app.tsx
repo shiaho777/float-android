@@ -51,6 +51,7 @@ import {
 import { CalendarMonthPage } from "./calendar/month-page";
 import { CalendarDetailPage } from "./calendar/detail-page";
 import { CalendarEventEditModal, type CalendarEventDraft } from "./calendar/event-edit-modal";
+import "@/styles/calendar.css";
 
 type OwnerOption = {
   key: string;

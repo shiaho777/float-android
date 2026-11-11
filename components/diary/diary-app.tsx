@@ -4,6 +4,7 @@ import { useState } from "react";
 import { BookOpenText, ChevronLeft } from "lucide-react";
 
 import { DiaryEntriesApp } from "./diary-entries-app";
+import "@/styles/diary.css";
 
 type DiaryAppProps = {
   onClose: () => void;

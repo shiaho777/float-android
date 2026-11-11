@@ -21,6 +21,8 @@ import { getDwellingImageAvailability, generateDwellingRoomImage, cancelDwelling
 import { deleteMediaRef, loadMediaObjectUrl } from "@/lib/media-cache-storage";
 import { RoomView, type DwellingRoomImageStatus } from "./room-view";
 import { StoryHtmlRenderer } from "@/components/ui/story-html-renderer";
+import "@/styles/dwelling.css";
+import "@/styles/story.css";
 
 type DwellingAppProps = {
     onClose: () => void;

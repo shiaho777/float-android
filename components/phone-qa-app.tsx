@@ -58,6 +58,7 @@ import {
 } from "@/lib/qa-prefs";
 import { resolveQaApiConfig } from "@/lib/qa-agent-engine";
 import "@/lib/qa-error-log";
+import "@/styles/qa.css";
 
 type PhoneQaAppProps = {
   onClose: () => void;

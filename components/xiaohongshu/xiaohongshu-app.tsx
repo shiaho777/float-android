@@ -85,6 +85,7 @@ import {
   type XiaohongshuTabId,
   type XiaohongshuUserPostInput,
 } from "@/lib/xiaohongshu-types";
+import "@/styles/xiaohongshu.css";
 
 type XiaohongshuAppProps = {
   onClose: (isBusy?: boolean) => void;

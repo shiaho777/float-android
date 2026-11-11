@@ -18,6 +18,7 @@ import {
 import {
   resolveAllPresences, type CharacterPresence,
 } from "@/lib/presence-engine";
+import "@/styles/findmy.css";
 
 // ── helpers ──
 
