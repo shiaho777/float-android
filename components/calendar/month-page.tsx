@@ -26,8 +26,14 @@ type MonthBlock = {
   weeks: MonthCell[][];
 };
 
-/** 构建 today ±12 个月的月历数据（农历只算一次） */
-function buildMonths(todayIso: string): MonthBlock[] {
+/**
+ * 构建 today ±12 个月的月历数据。
+ *
+ * 农历走的是 Intl 的 chinese 历法，每次 formatToParts 都不便宜；25 个月约 760 天，
+ * 全量同步算要 70~90ms，会让日历首次打开明显卡一下。所以先只排出格子（withLunar=false），
+ * 农历小字交给调用方在空闲时段补，首屏立刻出来。
+ */
+function buildMonths(todayIso: string, withLunar: boolean): MonthBlock[] {
   const today = new Date(`${todayIso}T00:00:00`);
   const blocks: MonthBlock[] = [];
   for (let m = -12; m <= 12; m++) {
@@ -43,19 +49,29 @@ function buildMonths(todayIso: string): MonthBlock[] {
         weeks.push(week);
         week = [];
       }
-      const lunar = getLunarInfoByIso(formatIsoDate(d));
       week.push({
         iso: formatIsoDate(d),
         day,
         weekday: d.getDay(),
-        lunarLabel: lunar?.cellLabel ?? "",
-        lunarFirst: lunar?.isFirstDay ?? false,
+        lunarLabel: "",
+        lunarFirst: false,
       });
     }
     if (week.length > 0) weeks.push(week);
     blocks.push({ ym: `${year}-${month}`, year, month, firstWeekday: first.getDay(), weeks });
   }
-  return blocks;
+  return withLunar ? blocks.map(fillMonthLunar) : blocks;
+}
+
+/** 给一个月的格子补上农历小字（纯函数，返回新对象）。 */
+function fillMonthLunar(block: MonthBlock): MonthBlock {
+  return {
+    ...block,
+    weeks: block.weeks.map(week => week.map(cell => {
+      const lunar = getLunarInfoByIso(cell.iso);
+      return { ...cell, lunarLabel: lunar?.cellLabel ?? "", lunarFirst: lunar?.isFirstDay ?? false };
+    })),
+  };
 }
 
 export function CalendarMonthPage({
@@ -80,7 +96,42 @@ export function CalendarMonthPage({
   onClose: () => void;
   onOpenTheme: () => void;
 }) {
-  const months = useMemo(() => buildMonths(todayIso), [todayIso]);
+  // 首帧只用骨架（不含农历），农历在空闲时分批补齐
+  const skeletonMonths = useMemo(() => buildMonths(todayIso, false), [todayIso]);
+  const [lunarMonths, setLunarMonths] = useState<{ iso: string; blocks: MonthBlock[] } | null>(null);
+  const months = lunarMonths && lunarMonths.iso === todayIso ? lunarMonths.blocks : skeletonMonths;
+
+  useEffect(() => {
+    let cancelled = false;
+    const pending = buildMonths(todayIso, false);
+    let index = 0;
+    type IdleWin = Window & {
+      requestIdleCallback?: (cb: (d: { timeRemaining: () => number }) => void, o?: { timeout: number }) => number;
+      cancelIdleCallback?: (h: number) => void;
+    };
+    const idleWin = window as IdleWin;
+    let idleHandle = 0;
+    let timer = 0;
+    const schedule = (fn: () => void) => {
+      if (typeof idleWin.requestIdleCallback === "function") idleHandle = idleWin.requestIdleCallback(() => fn(), { timeout: 1200 });
+      else timer = window.setTimeout(fn, 80);
+    };
+    const step = (deadline?: { timeRemaining: () => number }) => {
+      if (cancelled) return;
+      while (index < pending.length && (!deadline || deadline.timeRemaining() > 4)) {
+        pending[index] = fillMonthLunar(pending[index]);
+        index += 1;
+      }
+      if (index < pending.length) { schedule(step); return; }
+      setLunarMonths({ iso: todayIso, blocks: pending });
+    };
+    schedule(step);
+    return () => {
+      cancelled = true;
+      if (idleHandle) idleWin.cancelIdleCallback?.(idleHandle);
+      window.clearTimeout(timer);
+    };
+  }, [todayIso]);
   const todayYm = useMemo(() => {
     const d = new Date(`${todayIso}T00:00:00`);
     return `${d.getFullYear()}-${d.getMonth()}`;

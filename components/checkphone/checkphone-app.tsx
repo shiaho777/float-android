@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   AtSign,
   BookOpenText,
@@ -42,29 +42,11 @@ import {
 import { PageShell } from "@/components/ui/page-shell";
 import { ConfirmDialog, Toggle } from "@/components/ui";
 import { CheckPhoneDebugErrorCard } from "@/components/checkphone/checkphone-debug-error-card";
-import { CheckPhoneAssetsPage } from "@/components/checkphone/checkphone-assets-page";
-import { CheckPhoneBilibiliPage } from "@/components/checkphone/checkphone-bilibili-page";
-import { CheckPhoneBrowserPage } from "@/components/checkphone/checkphone-browser-page";
-import { CheckPhoneChatPage } from "@/components/checkphone/checkphone-chat-page";
-import { CheckPhoneDoubanPage } from "@/components/checkphone/checkphone-douban-page";
-import { CheckPhoneDouyinPage } from "@/components/checkphone/checkphone-douyin-page";
-import { CheckPhoneEmailPage } from "@/components/checkphone/checkphone-email-page";
-import { CheckPhoneInstagramPage } from "@/components/checkphone/checkphone-instagram-page";
-import { CheckPhoneMessagesPage } from "@/components/checkphone/checkphone-messages-page";
-import { CheckPhoneMusicPage } from "@/components/checkphone/checkphone-music-page";
-import { CheckPhoneNotesPage } from "@/components/checkphone/checkphone-notes-page";
-import { CheckPhonePhonePage } from "@/components/checkphone/checkphone-phone-page";
-import { CheckPhonePhotosPage } from "@/components/checkphone/checkphone-photos-page";
-import { CheckPhoneReadingPage } from "@/components/checkphone/checkphone-reading-page";
-import { CheckPhoneRedditPage } from "@/components/checkphone/checkphone-reddit-page";
-import { CheckPhoneShoppingPage } from "@/components/checkphone/checkphone-shopping-page";
-import { CheckPhoneSteamPage } from "@/components/checkphone/checkphone-steam-page";
-import { CheckPhoneTelegramPage } from "@/components/checkphone/checkphone-telegram-page";
-import { CheckPhoneTakeoutPage } from "@/components/checkphone/checkphone-takeout-page";
-import { CheckPhoneWeiboPage } from "@/components/checkphone/checkphone-weibo-page";
-import { CheckPhoneXiaohongshuPage } from "@/components/checkphone/checkphone-xiaohongshu-page";
-import { CheckPhoneXPage } from "@/components/checkphone/checkphone-x-page";
-import { CheckPhoneYoutubePage } from "@/components/checkphone/checkphone-youtube-page";
+import {
+  CHECKPHONE_EMBEDDED_APP_IDS,
+  getCheckPhoneEmbeddedPage,
+  scheduleCheckPhonePrefetch,
+} from "@/components/checkphone/checkphone-embedded-pages";
 import { loadCharacters } from "@/lib/character-storage";
 import type { Character } from "@/lib/character-types";
 import {
@@ -115,32 +97,6 @@ type ManifestState = {
   error: string | null;
   debugRawOutput: string | null;
 };
-
-const CHECKPHONE_EMBEDDED_APP_IDS = [
-  "chat",
-  "phone",
-  "notes",
-  "shopping",
-  "assets",
-  "photos",
-  "browser",
-  "messages",
-  "music",
-  "reading",
-  "weibo",
-  "xiaohongshu",
-  "email",
-  "douyin",
-  "takeout",
-  "telegram",
-  "steam",
-  "x",
-  "reddit",
-  "youtube",
-  "instagram",
-  "bilibili",
-  "douban",
-] as const satisfies CheckPhoneAppId[];
 
 function sanitizeCheckPhoneAppIds(value: unknown): CheckPhoneAppId[] {
   if (!Array.isArray(value)) return [];
@@ -450,6 +406,13 @@ export function CheckPhoneApp({ onClose }: CheckPhoneAppProps) {
     !!selectedAppId &&
     CHECKPHONE_EMBEDDED_APP_IDS.includes(selectedAppId as (typeof CHECKPHONE_EMBEDDED_APP_IDS)[number]);
 
+  // 进到某个角色的桌面后，子 App 的 chunk 在空闲时段按 manifest 顺序预取；
+  // 用户点图标时通常已经缓存好，不会看到加载态。
+  useEffect(() => {
+    if (!manifest || !activeCharId) return;
+    return scheduleCheckPhonePrefetch(manifest.allAppIds);
+  }, [manifest, activeCharId]);
+
   const closeSelectedApp = () => setSelectedAppId(null);
 
   function updateUnreadApps(characterId: string, update: (current: CheckPhoneAppId[]) => CheckPhoneAppId[]) {
@@ -486,56 +449,19 @@ export function CheckPhoneApp({ onClose }: CheckPhoneAppProps) {
 
   const activeEmbeddedAppView = useMemo(() => {
     if (!activeCharacter || !selectedAppId) return null;
-    switch (selectedAppId) {
-      case "chat":
-        return <CheckPhoneChatPage character={activeCharacter} onBack={closeSelectedApp} />;
-      case "phone":
-        return <CheckPhonePhonePage character={activeCharacter} onBack={closeSelectedApp} />;
-      case "notes":
-        return <CheckPhoneNotesPage character={activeCharacter} onBack={closeSelectedApp} />;
-      case "shopping":
-        return <CheckPhoneShoppingPage character={activeCharacter} onBack={closeSelectedApp} />;
-      case "assets":
-        return <CheckPhoneAssetsPage character={activeCharacter} onBack={closeSelectedApp} />;
-      case "photos":
-        return <CheckPhonePhotosPage character={activeCharacter} onBack={closeSelectedApp} />;
-      case "browser":
-        return <CheckPhoneBrowserPage character={activeCharacter} onBack={closeSelectedApp} />;
-      case "messages":
-        return <CheckPhoneMessagesPage character={activeCharacter} onBack={closeSelectedApp} />;
-      case "music":
-        return <CheckPhoneMusicPage character={activeCharacter} onBack={closeSelectedApp} />;
-      case "reading":
-        return <CheckPhoneReadingPage character={activeCharacter} onBack={closeSelectedApp} />;
-      case "weibo":
-        return <CheckPhoneWeiboPage character={activeCharacter} onBack={closeSelectedApp} />;
-      case "xiaohongshu":
-        return <CheckPhoneXiaohongshuPage character={activeCharacter} onBack={closeSelectedApp} />;
-      case "email":
-        return <CheckPhoneEmailPage character={activeCharacter} onBack={closeSelectedApp} />;
-      case "douyin":
-        return <CheckPhoneDouyinPage character={activeCharacter} onBack={closeSelectedApp} />;
-      case "takeout":
-        return <CheckPhoneTakeoutPage character={activeCharacter} onBack={closeSelectedApp} />;
-      case "telegram":
-        return <CheckPhoneTelegramPage character={activeCharacter} onBack={closeSelectedApp} />;
-      case "steam":
-        return <CheckPhoneSteamPage character={activeCharacter} onBack={closeSelectedApp} />;
-      case "x":
-        return <CheckPhoneXPage character={activeCharacter} onBack={closeSelectedApp} />;
-      case "reddit":
-        return <CheckPhoneRedditPage character={activeCharacter} onBack={closeSelectedApp} />;
-      case "youtube":
-        return <CheckPhoneYoutubePage character={activeCharacter} onBack={closeSelectedApp} />;
-      case "instagram":
-        return <CheckPhoneInstagramPage character={activeCharacter} onBack={closeSelectedApp} />;
-      case "bilibili":
-        return <CheckPhoneBilibiliPage character={activeCharacter} onBack={closeSelectedApp} />;
-      case "douban":
-        return <CheckPhoneDoubanPage character={activeCharacter} onBack={closeSelectedApp} />;
-      default:
-        return null;
-    }
+    const Page = getCheckPhoneEmbeddedPage(selectedAppId);
+    if (!Page) return null;
+    return (
+      <Suspense
+        fallback={
+          <div className="cp-embedded-loading" aria-hidden="true">
+            <span className="cp-loading-line" />
+          </div>
+        }
+      >
+        <Page character={activeCharacter} onBack={closeSelectedApp} />
+      </Suspense>
+    );
   }, [activeCharacter, selectedAppId]);
 
   async function handleGenerate() {
