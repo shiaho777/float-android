@@ -231,6 +231,10 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* 注意：这里不要加 content-visibility。月历一次渲染 25 个月，屏幕外的月份
+   一旦被跳过，高度就退化成 contain-intrinsic-size 的估算值，打开时的
+   “滚动到今天所在月份”会因此算偏（实测直接落到月末）。省下的绘制时间在
+   首帧里测不出来，不如保证定位准确。 */
 .calendar-month-block {
   padding-top: 2px;
 }

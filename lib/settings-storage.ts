@@ -183,7 +183,9 @@ export function loadPresets(): PresetConfig[] {
     try {
         const cachedPresets = readPresetsCache();
         const presets: PresetConfig[] = cachedPresets.map(stripDeprecatedPresetFields);
-        let shouldPersistCleanup = JSON.stringify(cachedPresets) !== JSON.stringify(presets);
+        // 拷贝是必须的：调用方（预设管理页）会就地改对象，不能让它动到缓存。
+        // 但"是否需要回写"不靠比较两份大 JSON，直接看有没有需要清洗的特征。
+        let shouldPersistCleanup = cachedPresets.some(presetNeedsNormalization);
 
         // Ensure built-in preset exists and is up-to-date
         const existingBuiltin = presets.find(p => p.builtIn);
@@ -234,6 +236,40 @@ export function resetBuiltinPreset(): void {
 /** 把采样参数规整到 2 位小数，保留 undefined（泛型保持原字段的可选性）。 */
 function round2<T extends number | undefined>(value: T): T {
     return (typeof value === "number" && Number.isFinite(value) ? Math.round(value * 100) / 100 : value) as T;
+}
+
+// 采样参数里会被 round2 规整的字段
+const PRESET_SAMPLE_KEYS = [
+    "temperature", "top_p", "min_p", "top_a",
+    "repetition_penalty", "frequency_penalty", "presence_penalty",
+] as const;
+
+/**
+ * 这个预设是否需要跑一遍 stripDeprecatedPresetFields。
+ *
+ * 原实现是把「原始数组」和「规范化后的数组」各 JSON.stringify 一次再比较，
+ * 而内置预设带 90 多条提示词、序列化出来接近 200KB——loadPresets() 每次调用
+ * 都要付两遍这份开销，聊天页挂载时会被调用十几次。这里改成直接判断需要清洗
+ * 的特征，零大对象分配。
+ */
+function presetNeedsNormalization(preset: PresetConfig & { fold_tags?: unknown }): boolean {
+    if (Object.prototype.hasOwnProperty.call(preset, "fold_tags")) return true;
+    for (const key of PRESET_SAMPLE_KEYS) {
+        if (round2(preset[key]) !== preset[key]) return true;
+    }
+    if (!preset.prompt_order?.length) return true;
+    for (const prompt of preset.prompts ?? []) {
+        if (Object.prototype.hasOwnProperty.call(prompt, "injection_order")) return true;
+        if (prompt.featureTag !== undefined || prompt.followUpOnly !== undefined) return true;
+        const normalized = normalizePromptScopeTags(prompt.tags);
+        const current = prompt.tags ?? [];
+        if (!normalized) {
+            if (current.length > 0) return true;
+            continue;
+        }
+        if (current.length !== normalized.length || current.some((tag, i) => tag !== normalized[i])) return true;
+    }
+    return false;
 }
 
 function stripDeprecatedPresetFields(preset: PresetConfig & { fold_tags?: unknown }): PresetConfig {

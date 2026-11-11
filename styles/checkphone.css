@@ -963,6 +963,17 @@
   z-index: 100;
 }
 
+/* 子 App 的 chunk 还没到时的占位：和模拟器同色底，只留一条加载线，不闪白。 */
+.cp-embedded-loading {
+  position: absolute;
+  inset: 0;
+  background: #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
 .cp-screen-empty::before,
 .cp-screen-loading::before {
   content: '';
