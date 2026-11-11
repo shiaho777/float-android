@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { ChevronLeft, Palette } from "lucide-react";
 import type { CalendarScheduleItem } from "@/lib/calendar-types";
 import type { MenstrualDayState } from "@/lib/menstrual-storage";
@@ -74,6 +74,68 @@ function fillMonthLunar(block: MonthBlock): MonthBlock {
   };
 }
 
+type MonthBlockViewProps = {
+  block: MonthBlock;
+  todayIso: string;
+  todayYm: string;
+  itemsByDate: Map<string, CalendarScheduleItem[]>;
+  cycleMap: Map<string, MenstrualDayState> | null;
+  onPickDay: (iso: string) => void;
+};
+
+/**
+ * 单个月份块。
+ *
+ * 日历一次要挂 25 个月。农历是空闲时分批补进来的，每次补完都要重新提交一次；
+ * 如果整棵树一起重渲染，每次提交都是 4000+ 节点的协调。这里把月块 memo 掉，
+ * 补哪几个月就只重渲染那几个月——提交被切碎，不会在补齐的瞬间卡住一次点击。
+ */
+const MonthBlockView = memo(function MonthBlockView({
+  block,
+  todayIso,
+  todayYm,
+  itemsByDate,
+  cycleMap,
+  onPickDay,
+}: MonthBlockViewProps) {
+  return (
+    <div className="calendar-month-block" data-ym={block.ym}>
+      <div
+        className="calendar-month-label"
+        style={{ "--label-offset": `${(block.firstWeekday / 7) * 100}%` } as CSSProperties}
+      >
+        <strong data-current={block.ym === todayYm ? "true" : undefined}>{block.month + 1}月</strong>
+      </div>
+      {block.weeks.map((week, wi) => (
+        <div key={wi} className="calendar-month-week">
+          {week.map(cell => {
+            const items = itemsByDate.get(cell.iso);
+            const cycle = cycleMap?.get(cell.iso) ?? null;
+            return (
+              <button
+                key={cell.iso}
+                type="button"
+                className="calendar-month-cell"
+                data-today={cell.iso === todayIso ? "true" : undefined}
+                style={{ gridColumnStart: cell.weekday + 1 }}
+                aria-label={`${block.month + 1}月${cell.day}日${items?.length ? `，${items.length}个日程` : ""}`}
+                onClick={() => onPickDay(cell.iso)}
+              >
+                <span className="calendar-month-num">{cell.day}</span>
+                <span className={`calendar-month-lunar${cell.lunarFirst ? " is-first" : ""}`}>{cell.lunarLabel}</span>
+                <span className="calendar-month-dots" aria-hidden="true">
+                  {cycle ? <i className="calendar-cycle-dot" data-type={cycle.type} /> : null}
+                  {items && items.length > 0 ? <i className="calendar-event-dot" data-color={items[0].colorKey} /> : null}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+});
+
 export function CalendarMonthPage({
   todayIso,
   zoneCity,
@@ -118,12 +180,16 @@ export function CalendarMonthPage({
     };
     const step = (deadline?: { timeRemaining: () => number }) => {
       if (cancelled) return;
+      const from = index;
       while (index < pending.length && (!deadline || deadline.timeRemaining() > 4)) {
         pending[index] = fillMonthLunar(pending[index]);
         index += 1;
       }
-      if (index < pending.length) { schedule(step); return; }
-      setLunarMonths({ iso: todayIso, blocks: pending });
+      // 每批填完就提交一次：月块是 memo 的，只有这批变了的月份会重渲染，
+      // 所以提交本身很轻，也不会出现「补完最后一秒一次性替换 25 个月」的卡顿。
+      // 数组必须换新（slice），否则同一个引用会被 React 判成没变化。
+      if (index > from) setLunarMonths({ iso: todayIso, blocks: pending.slice() });
+      if (index < pending.length) schedule(step);
     };
     schedule(step);
     return () => {
@@ -198,40 +264,15 @@ export function CalendarMonthPage({
     <div className="calendar-page calendar-page-month">
       <div className="calendar-month-scroll hide-scrollbar" ref={scrollRef} onScroll={handleScroll} style={{ paddingTop: headerH }}>
         {months.map(block => (
-          <div key={block.ym} className="calendar-month-block" data-ym={block.ym}>
-            <div
-              className="calendar-month-label"
-              style={{ "--label-offset": `${(block.firstWeekday / 7) * 100}%` } as CSSProperties}
-            >
-              <strong data-current={block.ym === todayYm ? "true" : undefined}>{block.month + 1}月</strong>
-            </div>
-            {block.weeks.map((week, wi) => (
-              <div key={wi} className="calendar-month-week">
-                {week.map(cell => {
-                  const items = itemsByDate.get(cell.iso);
-                  const cycle = cycleMap?.get(cell.iso) ?? null;
-                  return (
-                    <button
-                      key={cell.iso}
-                      type="button"
-                      className="calendar-month-cell"
-                      data-today={cell.iso === todayIso ? "true" : undefined}
-                      style={{ gridColumnStart: cell.weekday + 1 }}
-                      aria-label={`${block.month + 1}月${cell.day}日${items?.length ? `，${items.length}个日程` : ""}`}
-                      onClick={() => onPickDay(cell.iso)}
-                    >
-                      <span className="calendar-month-num">{cell.day}</span>
-                      <span className={`calendar-month-lunar${cell.lunarFirst ? " is-first" : ""}`}>{cell.lunarLabel}</span>
-                      <span className="calendar-month-dots" aria-hidden="true">
-                        {cycle ? <i className="calendar-cycle-dot" data-type={cycle.type} /> : null}
-                        {items && items.length > 0 ? <i className="calendar-event-dot" data-color={items[0].colorKey} /> : null}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
+          <MonthBlockView
+            key={block.ym}
+            block={block}
+            todayIso={todayIso}
+            todayYm={todayYm}
+            itemsByDate={itemsByDate}
+            cycleMap={cycleMap}
+            onPickDay={onPickDay}
+          />
         ))}
       </div>
 
