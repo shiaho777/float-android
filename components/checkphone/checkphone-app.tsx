@@ -102,6 +102,7 @@ import {
   endCheckPhoneBatchRefresh,
   useCheckPhoneBatchRefresh,
 } from "@/lib/checkphone-refresh-tracker";
+import "@/styles/checkphone.css";
 
 type CheckPhoneAppProps = {
   onClose: () => void;

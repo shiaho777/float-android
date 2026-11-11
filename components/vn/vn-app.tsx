@@ -5,6 +5,7 @@ import { VnSelect } from "./vn-select";
 import { VnChapters } from "./vn-chapters";
 import { VnPlayer } from "./vn-player";
 import { loadVnConfig, saveVnConfig } from "@/lib/vn-storage";
+import "@/styles/vn.css";
 
 interface VnAppProps {
   onClose: () => void;

@@ -53,6 +53,7 @@ import {
 import type { CustomAppManifest, CustomAppPermission, CustomAppResourceDeclarations, InstalledCustomApp } from "@/lib/custom-app-types";
 import { createCustomAppPackageFile } from "@/lib/custom-app-package";
 import { downloadFile } from "@/lib/download-utils";
+import "@/styles/app-market.css";
 
 type AppMarketAppProps = {
   onClose: () => void;

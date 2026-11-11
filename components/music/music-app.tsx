@@ -1876,6 +1876,7 @@ function formatMusicCount(value: number): string {
 import { MUSIC_CSS_EXAMPLE } from "@/lib/css-examples";
 import CSSSchemeBar from "@/components/ui/css-scheme-picker";
 import { kvGet, kvSet, kvRemove } from "@/lib/kv-db";
+import "@/styles/music.css";
 
 function MusicCssEditor({ onClose, onSave }: { onClose: () => void; onSave: (css: string) => void }) {
     const [css, setCss] = useState(() => kvGet("music-custom-css") || "");

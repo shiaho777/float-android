@@ -103,6 +103,7 @@ import {
   synthesizeSpeech,
   unlockAudioPlayback,
 } from "@/lib/tts-service";
+import "@/styles/story.css";
 
 type StoryAppProps = {
   onClose: () => void;
