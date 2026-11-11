@@ -87,8 +87,10 @@ function normalizeRestPackages(packages: RestToolPackageConfig[]): RestToolPacka
 
 export function loadRestToolPackages(): RestToolPackageConfig[] {
     if (typeof window === "undefined") return [];
-    const packages = normalizeRestPackages(readStoredRestPackages());
+    // 只读一次：这里原本把存储的 JSON 解析了两遍（一遍取原始值、一遍取规范化结果），
+    // 每次调用都要多付一次 parse。
     const raw = readStoredRestPackages();
+    const packages = normalizeRestPackages(raw);
     if (JSON.stringify(raw) !== JSON.stringify(packages)) saveRestToolPackages(packages);
     return packages;
 }
