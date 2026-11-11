@@ -30,6 +30,7 @@ import { decodeTxtArrayBuffer, parsePdfPageRange, PDF_PAGES_PER_CHAPTER, parseTx
 import type { Book, BookChapter, ReadingAnnotation, ReadingProgress } from "@/lib/reading-types";
 import type { Character } from "@/lib/character-types";
 import { splitBilingualText } from "@/lib/bilingual-text";
+import "@/styles/chat.css";
 
 type TxtPageItem =
     | { kind: "line"; text: string; chapterIndex: number; paragraphIndex: number; indent?: boolean; segEnd?: boolean }
