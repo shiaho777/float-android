@@ -4336,12 +4336,20 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
                 onClose={handleMiniChatClose}
                 onExpand={handleMiniChatExpand}
               >
-                <PhoneChatApp
-                  onClose={handleMiniChatClose}
-                  onSessionChange={handleMiniChatSessionChange}
-                  sharePayload={miniSharePayload}
-                  onShareDone={handleMiniShareDone}
-                />
+                {/* 只在浮窗显示时挂载聊天 App。
+                    以前 MiniAppWindow 无条件渲染 children，于是整个聊天 App（含会话列表、
+                    已打开的聊天室、数据库水合与四个全局事件订阅）从启动起就有一份藏在这个
+                    display:none 的壳里；展开成全屏后又会挂第二份，两份同时活着。
+                    关闭时传入上次的会话 id，重新打开仍回到原来的对话。 */}
+                {showMiniChat && (
+                  <PhoneChatApp
+                    onClose={handleMiniChatClose}
+                    initialSessionId={miniSharePayload ? null : (miniSessionRef.current?.id ?? null)}
+                    onSessionChange={handleMiniChatSessionChange}
+                    sharePayload={miniSharePayload}
+                    onShareDone={handleMiniShareDone}
+                  />
+                )}
               </MiniAppWindow>
               </Suspense>
               </AppChunkBoundary>
