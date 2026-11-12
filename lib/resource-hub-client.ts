@@ -348,8 +348,6 @@ export function checkImportFileForDestination(destination: ImportDestination, pa
             // 真正的校验在 installThemePackageFile 里按包内 manifest.json 做，
             // 这里只是个便宜的前置过滤。
             return lower.endsWith(".zip") || lower.endsWith(".ai-theme") ? null : "主题包需要 zip 文件（旧版 .ai-theme 也可以）";
-        case "mixology":
-            return isJson || lower.endsWith(".png") ? null : "特调材料需要 JSON 或 PNG 文件（独家特调的导出格式）";
     }
 }
 
@@ -679,45 +677,6 @@ export async function importResourceHubFile(
             // 这条目的地要先选预设和位置，走 fetchPresetEntry + applyPresetEntry 两步，
             // 不经过这里。留个明确的兜底，免得以后有人直接调进来静默什么都不做。
             throw new Error("预设条目需要先选择目标预设与位置");
-        case "mixology": {
-            const { importMixRecipePack, parseMixMaterialsFromJson, parseMixMaterialsFromPng, parseMixRecipeFile } = await import("./mixology/transfer");
-            const { loadMixCabinet, saveMixMaterial, MIX_CABINET_UPDATED_EVENT } = await import("./mixology/storage");
-            const { MIX_KIND_LABELS } = await import("./mixology/types");
-            let materials;
-            if (lower.endsWith(".png")) {
-                materials = parseMixMaterialsFromPng(await fetchResourceHubBinary(source, path));
-            } else {
-                const text = await fetchResourceHubText(source, path);
-                // 配方文件（整杯打包）：配方与材料一起落库，规矩同下
-                const pack = parseMixRecipeFile(text);
-                if (pack) return importMixRecipePack(pack, options?.authorName);
-                materials = parseMixMaterialsFromJson(text);
-            }
-            if (!materials.length) throw new Error("没有解析到特调材料，请确认文件是独家特调导出的 JSON 或 PNG");
-            // 种类与件数文件自带，全部自动入柜，用户不用选。集市来源打 imported 标记，
-            // 与酒材大厅入柜同一套规矩：不能发布、不能编辑，角色卡正文封存，小卷工具拒改。
-            // 同名同类的旧导入件就地更新（作者更新资源再导，不堆一柜副本）；
-            // 自己的原件 id 不同，永远不会被动到。
-            let updated = 0;
-            for (const material of materials) {
-                const prior = loadMixCabinet().find(
-                    (m) => m.imported && m.kind === material.kind && m.name.trim() === material.name.trim(),
-                );
-                if (prior) updated += 1;
-                saveMixMaterial({
-                    ...material,
-                    id: prior?.id ?? material.id,
-                    imported: true,
-                    author: options?.authorName?.trim() || material.author,
-                    createdAt: prior?.createdAt ?? material.createdAt,
-                });
-            }
-            dispatch(MIX_CABINET_UPDATED_EVENT);
-            const listed = materials.slice(0, 4).map((m) => `${MIX_KIND_LABELS[m.kind]}「${m.name}」`).join("、");
-            const more = materials.length > 4 ? ` 等 ${materials.length} 件` : "";
-            const updatedNote = updated ? `，其中 ${updated} 件是柜中导入件的更新` : "";
-            return `${listed}${more}已入柜${updatedNote}（集市来的作品不能发布，角色卡不可编辑）`;
-        }
         case "plugin": {
             const code = await fetchResourceHubText(source, path);
             const { installChatPluginFromCode } = await import("./chat-plugin-loader");

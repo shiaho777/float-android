@@ -29,7 +29,6 @@ import { previewCheckPhonePromptPayload } from "@/lib/checkphone-engine";
 import { CHECKPHONE_APP_SPECS, type CheckPhoneAppId } from "@/lib/checkphone-config";
 import { hydrateReadingStorage, loadBooks, loadChapters, loadAnnotations } from "@/lib/reading-storage";
 import { previewReadingAnnotationPrompt, previewReadingDiscussPrompt } from "@/lib/reading-engine";
-import { previewDwellingPromptPayload, type DwellingRefreshMode } from "@/lib/dwelling-engine";
 import { loadDiaryEntries } from "@/lib/diary-entry-storage";
 import { previewDiaryEntryPromptPayload } from "@/lib/diary-entry-engine";
 import { loadXiaohongshuState } from "@/lib/xiaohongshu-storage";
@@ -37,13 +36,9 @@ import { previewXiaohongshuPromptPayload } from "@/lib/xiaohongshu-engine";
 import { loadCoCreateSession } from "@/lib/cocreate-storage";
 import { previewCoCreatePromptPayload } from "@/lib/cocreate-engine";
 import { previewShoppingPromptPayload } from "@/lib/shopping-engine";
-import { previewInterviewMagazinePromptPayload } from "@/lib/interview-magazine-engine";
-import { hydrateMapStorage, loadMapWorlds, getLatestSave } from "@/lib/map-storage";
-import { previewAdventureCompanionPromptPayload } from "@/lib/map-rpg-engine";
 import { resolveUserIdentity } from "@/lib/settings-storage";
 import type { BookChapter } from "@/lib/reading-types";
 import type { CoCreateMode } from "@/lib/cocreate-types";
-import type { MapWorld, GameSave } from "@/lib/map-types";
 
 
 type CoreDebugMode = "chat" | "moments" | "calendar" | "story" | "vn";
@@ -150,16 +145,10 @@ export function DebugPromptPanel() {
     const [readingChapters, setReadingChapters] = useState<BookChapter[]>([]);
     const [readingStorageVersion, setReadingStorageVersion] = useState(0);
     const [readingMode, setReadingMode] = useState<"annotate" | "discuss">("annotate");
-    const [dwellingMode, setDwellingMode] = useState<DwellingRefreshMode | "explore">("full");
     const [xiaohongshuMode, setXiaohongshuMode] = useState<"activity" | "reaction" | "comment" | "mention">("activity");
     const [coCreateMode, setCoCreateMode] = useState<CoCreateMode>("write");
     const [shoppingMode, setShoppingMode] = useState<"catalog" | "search">("catalog");
     const [shoppingQuery, setShoppingQuery] = useState("礼物");
-    const [interviewMode, setInterviewMode] = useState<"opening" | "host" | "answer" | "article">("opening");
-    const [interviewTheme, setInterviewTheme] = useState("一次关于在场的采访");
-    const [adventureWorldId, setAdventureWorldId] = useState<string>("");
-    const [adventureStorageVersion, setAdventureStorageVersion] = useState(0);
-    const [adventureInstructionMode, setAdventureInstructionMode] = useState<"turn" | "exit">("turn");
 
     // Shared
     const [error, setError] = useState<string | null>(null);
@@ -473,8 +462,6 @@ export function DebugPromptPanel() {
                 } else {
                     result = await previewReadingAnnotationPrompt(book, chapter, annotations, extraCharacterId);
                 }
-            } else if (extraAppId === "dwelling") {
-                result = await previewDwellingPromptPayload(extraCharacterId, dwellingMode);
             } else if (extraAppId === "diary") {
                 const entries = loadDiaryEntries().filter(entry => entry.characterId === extraCharacterId);
                 result = await previewDiaryEntryPromptPayload(extraCharacterId, entries);
@@ -486,26 +473,8 @@ export function DebugPromptPanel() {
                 result = await previewCoCreatePromptPayload(session, coCreateMode);
             } else if (extraAppId === "shopping") {
                 result = await previewShoppingPromptPayload(shoppingMode, { query: shoppingQuery });
-            } else if (extraAppId === "interview") {
-                result = await previewInterviewMagazinePromptPayload({
-                    theme: interviewTheme,
-                    characterIds: [extraCharacterId],
-                    mode: interviewMode,
-                    transcript: [],
-                });
             } else {
-                if (!selectedAdventureSave) throw new Error("请先选择一个有存档的冒险世界");
-                const agent = selectedAdventureSave.agents.find(item => item.characterId === extraCharacterId);
-                const sharedUserIdentity = selectedAdventureSave.agents.length > 1 ? resolveUserIdentity(undefined, "adventure") : undefined;
-                result = await previewAdventureCompanionPromptPayload(
-                    extraCharacterId,
-                    selectedAdventureSave.streamLog,
-                    sharedUserIdentity,
-                    agent?.affinity,
-                    adventureInstructionMode === "exit"
-                        ? { instruction: "{{user}}刚才决定离开当前事件，不再继续。请以你的身份回应{{user}}的离开：你会说什么、有什么反应、接下来是否跟随/挽留/沉默旁观。" }
-                        : undefined,
-                );
+                throw new Error("该应用的提示词预览已移除");
             }
             setExtraResult(result);
             setExpandedIdx(new Set());
@@ -642,16 +611,6 @@ export function DebugPromptPanel() {
         return loadBooks().map(book => ({ id: book.id, title: book.title }));
     }, [extraAppId, readingStorageVersion]);
 
-    const adventureWorldOptions = useMemo(() => {
-        if (typeof window === "undefined") return [] as MapWorld[];
-        return loadMapWorlds().filter(world => world.status !== "generating");
-    }, [extraAppId, adventureStorageVersion]);
-    const selectedAdventureWorld = adventureWorldOptions.find(world => world.id === adventureWorldId) ?? null;
-    const selectedAdventureSave: GameSave | null = useMemo(
-        () => selectedAdventureWorld ? getLatestSave(selectedAdventureWorld.id) : null,
-        [selectedAdventureWorld, adventureStorageVersion],
-    );
-
     const postOptions = useMemo(() => {
         if (typeof window === "undefined") return [];
         const posts = getAllPosts();
@@ -707,20 +666,6 @@ export function DebugPromptPanel() {
         return () => { cancelled = true; };
     }, [readingBookId, readingChapterIndex]);
 
-    useEffect(() => {
-        if (extraAppId !== "adventure") return;
-        let cancelled = false;
-        hydrateMapStorage().then(() => {
-            if (!cancelled) setAdventureStorageVersion(version => version + 1);
-        }).catch(() => undefined);
-        return () => { cancelled = true; };
-    }, [extraAppId]);
-
-    useEffect(() => {
-        if (adventureWorldId || adventureWorldOptions.length === 0) return;
-        setAdventureWorldId(adventureWorldOptions[0].id);
-    }, [adventureWorldId, adventureWorldOptions]);
-
     if (collapsed) {
         return (
             <button
@@ -758,20 +703,11 @@ export function DebugPromptPanel() {
         if (extraAppId === "reading") {
             return "实际上下文以阅读实际场景注入，不按章节注入，此处仅为模拟";
         }
-        if (extraAppId === "dwelling" && dwellingMode === "explore") {
-            return "实际上下文以栖所当前点击的房间、家具和物品注入，此处仅用首个物品模拟";
-        }
         if (extraAppId === "xiaohongshu") {
             return "实际上下文以小红书当前触发的笔记、评论或@注入，此处仅取现有数据模拟";
         }
         if (extraAppId === "cocreate") {
             return "实际上下文以共创当前会话和刚发送内容注入，此处仅基于已保存会话模拟";
-        }
-        if (extraAppId === "interview") {
-            return "实际上下文以在场采访流程和已有转录注入，此处仅用空转录模拟";
-        }
-        if (extraAppId === "adventure") {
-            return "实际上下文以冒险当前事件、队伍状态和本轮行为注入，此处仅基于最近存档模拟";
         }
         return null;
     };
@@ -810,13 +746,6 @@ export function DebugPromptPanel() {
                     </select>
                 </>
             )}
-            {extraAppId === "dwelling" && (
-                <select value={dwellingMode} onChange={e => setDwellingMode(e.target.value as DwellingRefreshMode | "explore")} className="pv-select">
-                    <option value="full">完整栖所</option>
-                    <option value="items">刷新物品</option>
-                    <option value="explore">探索物品</option>
-                </select>
-            )}
             {extraAppId === "xiaohongshu" && (
                 <select value={xiaohongshuMode} onChange={e => setXiaohongshuMode(e.target.value as "activity" | "reaction" | "comment" | "mention")} className="pv-select">
                     <option value="activity">浏览互动</option>
@@ -840,31 +769,6 @@ export function DebugPromptPanel() {
                     {shoppingMode === "search" && (
                         <input value={shoppingQuery} onChange={e => setShoppingQuery(e.target.value)} className="pv-select" placeholder="搜索词" />
                     )}
-                </>
-            )}
-            {extraAppId === "interview" && (
-                <>
-                    <select value={interviewMode} onChange={e => setInterviewMode(e.target.value as "opening" | "host" | "answer" | "article")} className="pv-select">
-                        <option value="opening">开场提问</option>
-                        <option value="host">主持人追问</option>
-                        <option value="answer">嘉宾回答</option>
-                        <option value="article">专栏成稿</option>
-                    </select>
-                    <input value={interviewTheme} onChange={e => setInterviewTheme(e.target.value)} className="pv-select" placeholder="在场主题" />
-                </>
-            )}
-            {extraAppId === "adventure" && (
-                <>
-                    <select value={adventureWorldId} onChange={e => setAdventureWorldId(e.target.value)} className="pv-select">
-                        <option value="">选择冒险世界...</option>
-                        {adventureWorldOptions.map(world => (
-                            <option key={world.id} value={world.id}>{world.skeleton.world.name || "未命名世界"}</option>
-                        ))}
-                    </select>
-                    <select value={adventureInstructionMode} onChange={e => setAdventureInstructionMode(e.target.value as "turn" | "exit")} className="pv-select">
-                        <option value="turn">角色宣言</option>
-                        <option value="exit">离开回应</option>
-                    </select>
                 </>
             )}
             {renderPreviewBtn(handleExtraPreview, loading || (extraAppId !== "shopping" && !extraCharacterId))}

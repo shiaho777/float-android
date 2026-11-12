@@ -6,9 +6,7 @@ import {
 } from "./checkphone-config";
 
 const EXTRA_TAG_LABELS: Record<string, string> = {
-    adventure: "冒险",
     add_friend: "加好友",
-    dwelling: "栖所",
     offline: "线下",
     followup: "追发",
     timed_wake: "稍后主动联系",
@@ -36,13 +34,9 @@ const EXTRA_TAG_LABELS: Record<string, string> = {
     notes: "笔记",
     notewall: "便签墙",
     notewall_reply: "便签墙回复",
-    interview_magazine: "访谈",
     cocreate: "共创",
     action: "动作",
     tool: "工具",
-    host: "主持人",
-    answer: "角色回答",
-    article: "成刊",
     archive: "结束章节",
     write: "正文创作",
 };
@@ -145,7 +139,6 @@ export const CONTENT_SCOPE_TAG_GROUPS: TagGroupProfile[] = [
     { id: "story", label: "剧情", tags: ["story"], minors: [commonMinor("story", ["story"])] },
     { id: "vn", label: "漫卷", tags: ["vn"], minors: [commonMinor("vn", ["vn"])] },
     { id: "calendar", label: "日历", tags: ["calendar"], minors: [commonMinor("calendar", ["calendar"])] },
-    { id: "adventure", label: "冒险", tags: ["adventure"], minors: [commonMinor("adventure", ["adventure"])] },
     { id: "game", label: "游戏", tags: ["game"], minors: [commonMinor("game", ["game"])] },
     { id: "add_friend", label: "加好友", tags: ["add_friend"], minors: [commonMinor("add_friend", ["add_friend"])] },
     {
@@ -159,17 +152,6 @@ export const CONTENT_SCOPE_TAG_GROUPS: TagGroupProfile[] = [
         })),
     },
     {
-        id: "dwelling",
-        label: "栖所",
-        tags: ["dwelling"],
-        minors: [
-            commonMinor("dwelling", ["dwelling"]),
-            profile("dwelling", "full", "完整布局", ["dwelling", "full"]),
-            profile("dwelling", "items", "物品布局", ["dwelling", "items"]),
-            profile("dwelling", "explore", "探索", ["dwelling", "explore"]),
-        ],
-    },
-    {
         id: "reading",
         label: "阅读",
         tags: ["reading"],
@@ -177,16 +159,6 @@ export const CONTENT_SCOPE_TAG_GROUPS: TagGroupProfile[] = [
             commonMinor("reading", ["reading"]),
             profile("reading", "annotate", "标注", ["reading", "annotate"]),
             profile("reading", "discuss", "讨论", ["reading", "discuss"]),
-        ],
-    },
-    {
-        id: "interview_magazine",
-        label: "访谈",
-        tags: ["interview_magazine"],
-        minors: [
-            commonMinor("interview_magazine", ["interview_magazine"]),
-            profile("interview_magazine", "answer", "角色回答", ["interview_magazine", "answer"]),
-            profile("interview_magazine", "article", "成刊", ["interview_magazine", "article"]),
         ],
     },
     {
@@ -222,9 +194,6 @@ const LEGACY_TAG_MIGRATIONS = new Map<string, string[]>([
     [JSON.stringify(["xiaohongshu", "user_post_reaction"]), ["xiaohongshu", "reaction"]],
     [JSON.stringify(["xiaohongshu", "comment_reply"]), ["xiaohongshu", "comment"]],
     [JSON.stringify(["xiaohongshu", "mention_reply"]), ["xiaohongshu", "mention"]],
-    [JSON.stringify(["dwelling", "layout_full"]), ["dwelling", "full"]],
-    [JSON.stringify(["dwelling", "layout_items"]), ["dwelling", "items"]],
-    [JSON.stringify(["interview_magazine", "character_answer"]), ["interview_magazine", "answer"]],
 ]);
 
 export function normalizePromptScopeTags(tags: unknown): string[] | undefined {

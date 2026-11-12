@@ -63,12 +63,8 @@ const MDI_PATHS: Record<IconId, string> = {
   checkphone: mdiCellphone,
   shopping: mdiShopping,
   calendar: mdiCalendarMonth,
-  interview_magazine: mdiMicrophone,
   vnmode: mdiScriptTextOutline,
-  mapmode: mdiMapMarker,
-  qa: mdiHammerWrench,
   resource_hub: mdiStorefrontOutline,
-  mixology: mdiGlassCocktail,
   vnplay: mdiPlayCircle,
   vnchapters: mdiBookmark,
   moments: mdiCamera,
@@ -76,8 +72,6 @@ const MDI_PATHS: Record<IconId, string> = {
   theme: mdiPalette,
   resources: mdiDatabase,
   characters: mdiAccount,
-  dwelling: mdiHome,
-  findmy: mdiMapMarkerRadius,
 };
 
 function IconGlyphImpl({ id, className }: IconGlyphProps) {

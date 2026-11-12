@@ -7,8 +7,6 @@ import { PresetConfig, Prompt, PromptOrderEntry, WorldBookConfig, RegexConfig, W
 import type { UserIdentity } from "@/components/settings/user-identity";
 import { MacroEngine, postProcessTrim } from "./macro-engine";
 import type { RecentBlock, UnifiedRecentItem } from "./short-term-assembler";
-import { readDwellingLayoutCache } from "./dwelling-storage";
-import { formatDwellingContext } from "./dwelling-engine";
 import { matchesActiveTags } from "./content-tag-utils";
 import { formatXiaohongshuShareForPrompt } from "./chat-share";
 import { stripStateAndInnerForPrompt } from "./prompt-sanitizer";
@@ -105,11 +103,6 @@ export interface AssemblerInput {
     phoneSnapshotSummary?: string;
     phoneLastRefreshAt?: string;
     characterRelations?: string;          // formatted world-group relationship marker
-    dwellingContext?: string;               // formatted dwelling layout snapshot for cross-app reference
-    dwellingRoom?: string;
-    dwellingFurniture?: string;
-    dwellingItem?: string;
-    dwellingItemPreview?: string;
     bookTitle?: string;
     chapterTitle?: string;
     chapterContent?: string;
@@ -483,7 +476,6 @@ function getMarkerContent(
     regexGroups?: RegexConfig[],
     regexCtx?: RegexContext,
     characterRelations?: string,
-    dwellingContext?: string,
     skillActivationContext?: string,
 ): string | null {
     switch (identifier) {
@@ -518,12 +510,6 @@ function getMarkerContent(
         case "characterRelations": {
             const relations = characterRelations?.trim() || formatCharacterRelationsForPrompt(character.id).trim();
             return relations || null;
-        }
-        case "dwellingContext": {
-            if (dwellingContext?.trim()) return dwellingContext;
-            // Auto-load from in-memory cache if not explicitly provided
-            const cached = readDwellingLayoutCache(character.id);
-            return cached ? formatDwellingContext(cached.layout, cached.updatedAt) : null;
         }
         case "characterSkills": {
             const skills = (character.skills ?? []).filter(s => s.enabled !== false && s.name.trim());
@@ -791,10 +777,6 @@ export function assemblePromptPayload(input: AssemblerInput): LLMMessage[] {
         engine.phoneAppLabel = input.phoneAppLabel ?? "";
         engine.phoneSnapshotSummary = input.phoneSnapshotSummary ?? "";
         engine.phoneLastRefreshAt = input.phoneLastRefreshAt ?? "";
-        engine.dwellingRoom = input.dwellingRoom ?? "";
-        engine.dwellingFurniture = input.dwellingFurniture ?? "";
-        engine.dwellingItem = input.dwellingItem ?? "";
-        engine.dwellingItemPreview = input.dwellingItemPreview ?? "";
         engine.bookTitle = input.bookTitle ?? "";
         engine.chapterTitle = input.chapterTitle ?? "";
         engine.chapterContent = input.chapterContent ?? "";
@@ -875,7 +857,6 @@ export function assemblePromptPayload(input: AssemblerInput): LLMMessage[] {
                     longTermMemories,
                     regexes, { macroEngine: engine, activeTags },
                     input.characterRelations,
-                    input.dwellingContext,
                     recentHistoryStr,
                 );
                 if (markerContent) {
@@ -2105,7 +2086,6 @@ export function assembleGroupPromptPayload(input: GroupAssemblerInput): LLMMessa
                     m.longTermMemories,
                     regexes, { macroEngine: engine, activeTags },
                     m.characterRelations,
-                    undefined,
                     activationContext,
                 );
                 if (markerContent) {

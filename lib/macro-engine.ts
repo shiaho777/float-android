@@ -65,10 +65,6 @@ export class MacroEngine {
     phoneSnapshotSummary: string = "";
     phoneLastRefreshAt: string = "";
     // Dwelling fields
-    dwellingRoom: string = "";
-    dwellingFurniture: string = "";
-    dwellingItem: string = "";
-    dwellingItemPreview: string = "";
     bookTitle: string = "";
     chapterTitle: string = "";
     chapterContent: string = "";
@@ -199,10 +195,6 @@ export class MacroEngine {
         if (body === "phoneLastRefreshAt") return this.phoneLastRefreshAt || "\x00TRIM\x00";
 
         // Dwelling fields
-        if (body === "dwellingRoom") return this.dwellingRoom || "\x00TRIM\x00";
-        if (body === "dwellingFurniture") return this.dwellingFurniture || "\x00TRIM\x00";
-        if (body === "dwellingItem") return this.dwellingItem || "\x00TRIM\x00";
-        if (body === "dwellingItemPreview") return this.dwellingItemPreview || "\x00TRIM\x00";
         if (body === "bookTitle") return this.bookTitle || "\x00TRIM\x00";
         if (body === "chapterTitle") return this.chapterTitle || "\x00TRIM\x00";
         if (body === "chapterContent") return this.chapterContent || "\x00TRIM\x00";

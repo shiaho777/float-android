@@ -77,7 +77,7 @@ import { resolveUserIdentity } from "@/lib/settings-storage";
 import { incrementEventCounter } from "@/lib/memory-storage";
 import { maybeRunSummarization } from "@/lib/memory-summarizer";
 import { getPwaHostedSafeArea, PWA_DISPLAY_MODE_CHANGED_EVENT } from "@/lib/pwa-display-mode";
-import { IFRAME_ERROR_CAPTURE_SCRIPT } from "@/lib/qa-iframe-error-bridge";
+import { IFRAME_ERROR_CAPTURE_SCRIPT } from "@/lib/iframe-error-bridge";
 import "@/styles/game.css";
 
 type GameMainView = "hall" | "library" | "studio";

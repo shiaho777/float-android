@@ -908,7 +908,6 @@ function normalizeBindingConfig(config: BindingConfig): { config: BindingConfig;
             changed = true;
         }
         if (appOverrides.fortune) {
-            if (!appOverrides.interview_magazine) appOverrides.interview_magazine = appOverrides.fortune;
             delete appOverrides.fortune;
             changed = true;
         }

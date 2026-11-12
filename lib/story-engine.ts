@@ -26,7 +26,7 @@ import { MacroEngine } from "./macro-engine";
 const DEFAULT_STORY_FOLD_TAGS = "think,thinking,summary,story_status,story_theater";
 const DEFAULT_STORY_CONTEXT_EXCLUDED_TAGS = "think,thinking,story_theater";
 const STORY_VOICE_FORMAT_PROMPT = `# 剧情正文格式
-请使用与“独家特调”一致的正文语义格式：
+请使用统一的正文语义格式：
 - 「对白」：仅包裹角色真正说出口的人声；每次说话分别包裹，不要在括号内重复角色名。
 - *心声*：包裹角色没有说出口的内心想法。
 - 【场景】：单独一行，用于地点、时间或场景过场。
