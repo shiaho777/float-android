@@ -6,6 +6,7 @@ import type { StateValue } from "@/lib/chat-storage";
 import { parseStateValues, mergeStateValues } from "@/lib/state-value-parser";
 import { parseAIResponse, type ParsedMessagePart } from "@/lib/rich-message-parser";
 import { isKnownStickerLabel } from "@/lib/sticker-data";
+import { useLoadMoreOnScroll } from "./use-load-more-on-scroll";
 import { translateReasoningText } from "@/lib/reasoning-translate";
 import { translateChatMessageText } from "@/lib/message-translate";
 import { autoTranslateUnbilingualReplies } from "@/lib/chat-auto-translate";
@@ -1778,6 +1779,7 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
     const needsInitialScrollRef = useRef(true);
     const prevMsgCountRef = useRef(0);
     const loadingMoreRef = useRef(false);
+    const loadMoreSentinelRef = useRef<HTMLButtonElement | null>(null);
     const loadMoreScrollRestoreRef = useRef<{ scrollHeight: number; scrollTop: number } | null>(null);
     const offlineLoadMoreRestoreRef = useRef<{ scrollHeight: number; scrollTop: number } | null>(null);
     const loadMoreAnchorRef = useRef<ScrollAnchorSnapshot | null>(null);
@@ -1959,6 +1961,14 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
         setHasMore(nextHasMore);
         setMessages(nextMessages);
     }, [captureScrollAnchor, hasMore, messages.length, session.id, stopLoadMoreAnchorTracking]);
+    // 滚到接近顶部时自动加载更早的消息（按钮仍然保留，可点可滚）
+    useLoadMoreOnScroll({
+        rootRef: scrollRef,
+        sentinelRef: loadMoreSentinelRef,
+        enabled: !offlineMode && hasMore,
+        onLoadMore: loadMore,
+    });
+
     // useLayoutEffect: runs synchronously after DOM mutation, before browser paint
     // Prevents flash of wrong scroll position, works reliably under transform: scale()
     const displayMessages = useMemo(() => {
@@ -4105,6 +4115,14 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
         setOfflineVisibleCount(count => Math.min(count + OFFLINE_LOAD_MORE_COUNT, offlineTurns.length));
     }, [hasMoreOfflineTurns, offlineTurns.length]);
 
+    const offlineLoadMoreSentinelRef = useRef<HTMLButtonElement | null>(null);
+    useLoadMoreOnScroll({
+        rootRef: scrollRef,
+        sentinelRef: offlineLoadMoreSentinelRef,
+        enabled: offlineMode && hasMoreOfflineTurns,
+        onLoadMore: loadMoreOfflineTurns,
+    });
+
     useLayoutEffect(() => {
         const restore = offlineLoadMoreRestoreRef.current;
         const el = scrollRef.current;
@@ -5536,6 +5554,7 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
                         ) : null}
                         {hasMoreOfflineTurns && (
                             <button
+                                ref={offlineLoadMoreSentinelRef}
                                 type="button"
                                 className="chat-sys-msg chat-load-more-button"
                                 onClick={loadMoreOfflineTurns}
@@ -5691,6 +5710,7 @@ export function ChatRoom({ session, onBack, onDeleted }: ChatRoomProps) {
                 )}
                 {!offlineMode && hasMore && (
                     <button
+                        ref={loadMoreSentinelRef}
                         type="button"
                         className="chat-sys-msg chat-load-more-button"
                         onClick={loadMore}
