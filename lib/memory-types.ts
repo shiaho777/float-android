@@ -232,12 +232,10 @@ export type MemoryConfig = {
         checkphone?: boolean;
         diary?: boolean;
         xiaohongshu?: boolean;
-        interview_magazine?: boolean;
         cocreate?: boolean;
         game?: boolean;
         story?: boolean;
         vn?: boolean;
-        adventure?: boolean;
         custom_app?: boolean;
     };
 };
@@ -474,12 +472,10 @@ export const DEFAULT_MEMORY_CONFIG: MemoryConfig = {
         checkphone: true,
         diary: true,
         xiaohongshu: true,
-        interview_magazine: true,
         cocreate: true,
         game: true,
         story: true,
         vn: true,
-        adventure: true,
         custom_app: true,
     },
 };

@@ -38,7 +38,11 @@ export function loadWidgets(): WidgetInstance[] {
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(isValidWidget).map((widget) => (
-      widget.type === "fortune" ? { ...widget, type: "interviewMagazine" } : widget
+      // fortune / interviewMagazine 两个小组件已移除：落在桌面上的实例换成通用照片框，
+      // 避免留下一个渲染不出来的空块。
+      widget.type === "fortune" || widget.type === "interviewMagazine"
+        ? { ...widget, type: "photo", size: widget.size === "2x4" ? "2x2" : widget.size }
+        : widget
     ));
   } catch {
     return [];

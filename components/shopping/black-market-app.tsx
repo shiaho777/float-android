@@ -58,7 +58,7 @@ import { loadCharacters } from "@/lib/character-storage";
 import type { Character } from "@/lib/character-types";
 import { resolveUserIdentity } from "@/lib/settings-storage";
 import type { BlackMarketOwnedTheater, BlackMarketRenderRule, BlackMarketSceneSession, BlackMarketState, BlackMarketTheaterProjectionEntry, BlackMarketTheaterTemplate } from "@/lib/black-market-types";
-import { IFRAME_ERROR_CAPTURE_SCRIPT } from "@/lib/qa-iframe-error-bridge";
+import { IFRAME_ERROR_CAPTURE_SCRIPT } from "@/lib/iframe-error-bridge";
 import "@/styles/black-market.css";
 
 type BlackMarketAppProps = {

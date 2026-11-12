@@ -8,7 +8,6 @@ import { isNativeApp } from "@/lib/download-utils";
 import { isPhoneShellMobile } from "@/lib/shell-layout-mode";
 import { PhonePlaceholderApp } from "@/components/phone-placeholder-app";
 import { ChatPluginPageBoundary } from "@/components/chat/chat-plugin-page-boundary";
-import "@/lib/qa-error-log";
 import type { ResourceSubPage } from "@/components/phone-resources-app";
 import { useMusicControlsOptional } from "@/lib/music-context";
 import { CustomAppForegroundBoundary } from "@/components/app-market/custom-app-failure";
@@ -18,7 +17,6 @@ import { hydrateStoryStorage } from "@/lib/story-storage";
 import { hydrateMomentsStorage } from "@/lib/moments-storage";
 import { hydrateVnStorage } from "@/lib/vn-storage";
 import { hydrateSettingsDb } from "@/lib/settings-db";
-import { hydrateDwellingStorage } from "@/lib/dwelling-storage";
 import { hydrateCheckPhoneStorage } from "@/lib/checkphone-storage";
 import {
   DOCK_DEFAULT,
@@ -111,23 +109,17 @@ const MusicPlayer = lazy(() => import("@/components/music/music-player"));
 const MusicFloat = lazy(() => import("@/components/music/music-float"));
 const MiniAppWindow = lazy(() => import("@/components/music/mini-app-window"));
 const PhoneCalendarApp = lazy(() => import("@/components/calendar-app").then(m => ({ default: m.PhoneCalendarApp })));
-const PhoneQaApp = lazy(() => import("@/components/phone-qa-app").then(m => ({ default: m.PhoneQaApp })));
 const DiaryApp = lazy(() => import("@/components/diary/diary-app").then(m => ({ default: m.DiaryApp })));
 const XiaohongshuApp = lazy(() => import("@/components/xiaohongshu/xiaohongshu-app").then(m => ({ default: m.XiaohongshuApp })));
 const StoryApp = lazy(() => import("@/components/story/story-app").then(m => ({ default: m.StoryApp })));
 const VnApp = lazy(() => import("@/components/vn/vn-app").then(m => ({ default: m.VnApp })));
 const ReadingApp = lazy(() => import("@/components/reading/reading-app"));
-const MapApp = lazy(() => import("@/components/map/map-app"));
-const FindMyApp = lazy(() => import("@/components/findmy/findmy-app"));
-const DwellingApp = lazy(() => import("@/components/dwelling/dwelling-app").then(m => ({ default: m.DwellingApp })));
 const MascotFloat = lazy(() => import("@/components/mascot/mascot-float").then(m => ({ default: m.MascotFloat })));
 const MascotPreviewHost = lazy(() => import("@/components/mascot/mascot-preview-host").then(m => ({ default: m.MascotPreviewHost })));
 const PhoneResourcesApp = lazy(() => import("@/components/phone-resources-app").then(m => ({ default: m.PhoneResourcesApp })));
 const CheckPhoneApp = lazy(() => import("@/components/checkphone/checkphone-app").then(m => ({ default: m.CheckPhoneApp })));
 const ShoppingApp = lazy(() => import("@/components/shopping/shopping-app").then(m => ({ default: m.ShoppingApp })));
 const GameHubApp = lazy(() => import("@/components/game/game-hub-app").then(m => ({ default: m.GameHubApp })));
-const MixologyApp = lazy(() => import("@/components/mixology/mixology-app").then(m => ({ default: m.MixologyApp })));
-const InterviewMagazineApp = lazy(() => import("@/components/interview/interview-magazine-app"));
 const CoCreateApp = lazy(() => import("@/components/cocreate/cocreate-app").then(m => ({ default: m.CoCreateApp })));
 const AppMarketApp = lazy(() => import("@/components/app-market/app-market-app").then(m => ({ default: m.AppMarketApp })));
 const ResourceHubApp = lazy(() => import("@/components/resource-hub/resource-hub-app").then(m => ({ default: m.ResourceHubApp })));
@@ -422,7 +414,6 @@ function getInstalledCustomIconIds(): Set<string> {
 
 function migrateLegacyDesktopIconId(id: string, customIconIds = getInstalledCustomIconIds()): DesktopIconId | null {
   if (id === "weibo") return "game";
-  if (id === "fortune") return "interview_magazine";
   if (id === "forum") return "cocreate";
   if (isCustomAppIconId(id) && customIconIds.has(id)) return id;
   return id in ICONS ? id as IconId : null;
@@ -1091,12 +1082,10 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
   const backgroundRunSeqRef = useRef(0);
   const pendingCustomAppBackgroundToolsRef = useRef<Map<string, PendingCustomAppBackgroundTool>>(new Map());
   const [resourcesInitialPage, setResourcesInitialPage] = useState<ResourceSubPage>("main");
-  const [dwellingMounted, setDwellingMounted] = useState(false);
   const [xiaohongshuMounted, setXiaohongshuMounted] = useState(false);
   const [xiaohongshuBusy, setXiaohongshuBusy] = useState(false);
   const [shoppingMounted, setShoppingMounted] = useState(false);
   const [shoppingBusy, setShoppingBusy] = useState(false);
-  if (activeApp === "dwelling" && !dwellingMounted) setDwellingMounted(true);
   if (activeApp === "xiaohongshu" && !xiaohongshuMounted) setXiaohongshuMounted(true);
   if (activeApp === "shopping" && !shoppingMounted) setShoppingMounted(true);
   const [widgets, setWidgets] = useState<WidgetInstance[]>([]);
@@ -1785,7 +1774,6 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
           hydrateStoryStorage(),
           hydrateMomentsStorage(),
           hydrateVnStorage(),
-          hydrateDwellingStorage(),
           hydrateCheckPhoneStorage(),
         ]);
       } catch (err) {
@@ -3991,14 +3979,6 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
     if (activeApp === "calendar") {
       return <PhoneCalendarApp onClose={() => setActiveApp(null)} onNotice={setNotice} />;
     }
-    if (activeApp === "qa") {
-      return (
-        <ChatPluginPageBoundary page="工坊" onClose={() => setActiveApp(null)}>
-          <PhoneQaApp onClose={() => setActiveApp(null)} onNotice={setNotice} />
-        </ChatPluginPageBoundary>
-      );
-    }
-
     if (activeApp === "diary") {
       return <DiaryApp onClose={() => setActiveApp(null)} onNotice={setNotice} />;
     }
@@ -4019,19 +3999,6 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
       return <ReadingApp onClose={() => setActiveApp(null)} />;
     }
 
-    if (activeApp === "mapmode") {
-      return <MapApp onClose={() => setActiveApp(null)} />;
-    }
-
-    if (activeApp === "findmy") {
-      return <FindMyApp onClose={() => setActiveApp(null)} />;
-    }
-
-    if (activeApp === "dwelling") {
-      // DwellingApp is rendered separately (kept alive) — see below
-      return null;
-    }
-
     if (activeApp === "checkphone") {
       return <CheckPhoneApp onClose={() => setActiveApp(null)} />;
     }
@@ -4042,10 +4009,6 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
 
     if (activeApp === "game") {
       return <GameHubApp onClose={() => setActiveApp(null)} />;
-    }
-
-    if (activeApp === "mixology") {
-      return <MixologyApp onClose={() => setActiveApp(null)} />;
     }
 
     if (activeApp === "appmarket") {
@@ -4068,10 +4031,6 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
 
     if (activeApp === "resource_hub") {
       return <ResourceHubApp onClose={() => setActiveApp(null)} onNotice={setNotice} />;
-    }
-
-    if (activeApp === "interview_magazine") {
-      return <InterviewMagazineApp onClose={() => setActiveApp(null)} />;
     }
 
     if (activeApp === "cocreate") {
@@ -4600,23 +4559,11 @@ export function DesktopShell({ initialThemeProfile, initialThemeAssets }: Deskto
                 </div>
                 {activeApp && (
                   <>
-                    <section className="phone-app-pane" style={activeApp === "dwelling" || activeApp === "xiaohongshu" || activeApp === "shopping" ? { display: "none" } : undefined}>
+                    <section className="phone-app-pane" style={activeApp === "xiaohongshu" || activeApp === "shopping" ? { display: "none" } : undefined}>
                       <AppChunkBoundary onClose={() => setActiveApp(null)}>
                         <Suspense fallback={null}>{renderAppBody()}</Suspense>
                       </AppChunkBoundary>
                     </section>
-                    {/* DwellingApp stays mounted while generating — auto-unmounts when idle */}
-                    {dwellingMounted && (
-                      <section className="phone-app-pane" style={activeApp !== "dwelling" ? { display: "none" } : undefined}>
-                        <AppChunkBoundary><Suspense fallback={null}>
-                        <DwellingApp
-                          onClose={() => setActiveApp(null)}
-                          visible={activeApp === "dwelling"}
-                          onIdle={() => { if (activeApp !== "dwelling") setDwellingMounted(false); }}
-                        />
-                        </Suspense></AppChunkBoundary>
-                      </section>
-                    )}
                   </>
                 )}
                 {xiaohongshuMounted && (

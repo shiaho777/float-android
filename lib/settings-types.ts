@@ -243,15 +243,15 @@ export type ImageGenerationSettings = {
 // Content apps that can have per-character bindings.
 export type ContentAppId =
     | "chat" | "diary" | "music" | "reading"
-    | "forum" | "cocreate" | "story" | "game" | "xiaohongshu" | "dwelling"
-    | "checkphone" | "shopping" | "calendar" | "interview_magazine"
-    | "moments" | "group_chat" | "vn" | "adventure";
+    | "forum" | "cocreate" | "story" | "game" | "xiaohongshu"
+    | "checkphone" | "shopping" | "calendar"
+    | "moments" | "group_chat" | "vn";
 
 export const CONTENT_APP_IDS: ContentAppId[] = [
     "chat", "diary", "music", "reading",
-    "cocreate", "story", "game", "xiaohongshu", "dwelling",
-    "checkphone", "shopping", "calendar", "interview_magazine",
-    "moments", "group_chat", "vn", "adventure"
+    "cocreate", "story", "game", "xiaohongshu",
+    "checkphone", "shopping", "calendar",
+    "moments", "group_chat", "vn"
 ];
 
 export const CONTENT_APP_LABELS: Record<ContentAppId, string> = {
@@ -264,15 +264,12 @@ export const CONTENT_APP_LABELS: Record<ContentAppId, string> = {
     story: "剧情",
     game: "游戏",
     xiaohongshu: "小红书",
-    dwelling: "栖所",
     checkphone: "查手机",
     shopping: "购物",
     calendar: "日历",
-    interview_magazine: "在场",
     moments: "朋友圈",
     group_chat: "群聊",
     vn: "漫卷",
-    adventure: "冒险",
 };
 
 // Binding slot — config selections for a given scope

@@ -3,7 +3,6 @@
 import { chatDb } from "./chat-db";
 import { updateChatMessage, type ChatMessage } from "./chat-storage";
 import { estimateValueBytes } from "./data-management/serializers";
-import { collectRoomImageRefs, listDwellingLayouts, saveDwellingLayout } from "./dwelling-storage";
 import {
   cleanChatImage,
   cleanChatXiaohongshuShareImage,
@@ -49,7 +48,6 @@ export type StorageCategoryId =
   | "moments_images"
   | "xiaohongshu_images"
   | "local_music"
-  | "dwelling_images"
   | "theme_assets"
   | "reading_raw_files"
   | "orphan_media";
@@ -103,11 +101,6 @@ const CATEGORY_META: Record<StorageCategoryId, { label: string; description: str
     label: "本地音乐",
     description: "导入的本地音乐文件（不含在线音乐）。清理后需重新导入。",
     supportsKeepDays: true,
-  },
-  dwelling_images: {
-    label: "栖所房间图",
-    description: "栖所生成的房间效果图。清理后可以在栖所里重新生成。",
-    supportsKeepDays: false,
   },
   theme_assets: {
     label: "主题素材",
@@ -323,20 +316,6 @@ export async function scanStorageSpace(onProgress?: (detail: string) => void): P
   }
   stats.push(makeStat("local_music", musicBytes, musicCount));
 
-  onProgress?.("统计栖所房间图…");
-  const layouts = await listDwellingLayouts();
-  let dwellingBytes = 0;
-  let dwellingCount = 0;
-  for (const { layout } of layouts) {
-    for (const ref of collectRoomImageRefs(layout)) {
-      const stored = await loadMediaBlob(ref).catch(() => null);
-      if (!stored) continue;
-      dwellingBytes += stored.blob.size;
-      dwellingCount += 1;
-    }
-  }
-  stats.push(makeStat("dwelling_images", dwellingBytes, dwellingCount));
-
   onProgress?.("统计阅读原始文件…");
   const deletableRawFiles = await listDeletableRawFiles();
   stats.push(makeStat(
@@ -502,27 +481,6 @@ async function clearLocalMusic(keepDays?: number): Promise<StorageClearResult> {
   return { cleared, freedBytes };
 }
 
-async function clearDwellingImages(): Promise<StorageClearResult> {
-  const layouts = await listDwellingLayouts();
-  let cleared = 0;
-  let freedBytes = 0;
-  for (const { characterId, layout } of layouts) {
-    const refs = collectRoomImageRefs(layout);
-    if (refs.length === 0) continue;
-    for (const ref of refs) {
-      const stored = await loadMediaBlob(ref).catch(() => null);
-      freedBytes += stored?.blob.size ?? 0;
-      await deleteMediaRef(ref).catch(() => undefined);
-      cleared += 1;
-    }
-    const nextLayout = {
-      ...layout,
-      rooms: layout.rooms.map((room) => (room.imageAssetId ? { ...room, imageAssetId: undefined } : room)),
-    };
-    await saveDwellingLayout(characterId, nextLayout);
-  }
-  return { cleared, freedBytes };
-}
 
 /** 可删除的原始文件 = 非 PDF 书的原件（TXT/EPUB 章节已入库）+ 书已删除的孤儿原件。
  *  PDF 的正文渲染和章节懒解析都要现读原文件，删了书就打不开了，必须保留。 */
@@ -569,7 +527,6 @@ export async function clearStorageCategory(
     case "moments_images": return clearMomentsImages(options.keepDays);
     case "xiaohongshu_images": return clearXiaohongshuImages(options.keepDays);
     case "local_music": return clearLocalMusic(options.keepDays);
-    case "dwelling_images": return clearDwellingImages();
     case "theme_assets": {
       const result = await cleanupOrphanThemeAssets();
       return { cleared: result.deletedAssets, freedBytes: result.freedBytes };

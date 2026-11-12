@@ -10,13 +10,10 @@ export type IconId =
   | "game"
   | "appmarket"
   | "xiaohongshu"
-  | "dwelling"
   | "checkphone"
   | "shopping"
   | "calendar"
-  | "interview_magazine"
   | "vnmode"
-  | "mapmode"
   | "vnplay"
   | "vnchapters"
   | "moments"
@@ -25,10 +22,7 @@ export type IconId =
   | "theme"
   | "resources"
   | "characters"
-  | "qa"
-  | "resource_hub"
-  | "mixology"
-  | "findmy";
+  | "resource_hub";
 
 // 桌面文件夹：以 folder: 前缀的 id 伪装成图标占一个格子参与拖拽/换页，
 // 内容（名字 + 成员图标）另存 DesktopFolderMap。文件夹不允许进 dock。
@@ -54,21 +48,19 @@ export type IconMeta = {
   path?: string;
 };
 
-export const PAGE_1_DEFAULT: IconId[] = ["chat", "diary", "music", "calendar", "checkphone", "shopping", "reading", "interview_magazine"];
+export const PAGE_1_DEFAULT: IconId[] = ["chat", "diary", "music", "calendar", "checkphone", "shopping", "reading"];
 
 export const PAGE_2_DEFAULT: IconId[] = [
   "cocreate",
   "game",
   "appmarket",
   "xiaohongshu",
-  "dwelling",
   "story",
-  "vnmode",
-  "mapmode"
+  "vnmode"
 ];
 
 // 第三页默认图标：右半边 2×2 排布（左半边留给日历组件），位置见 createDefaultDesktopIconLayout
-export const PAGE_3_DEFAULT: IconId[] = ["qa", "resource_hub", "mixology", "findmy"];
+export const PAGE_3_DEFAULT: IconId[] = ["resource_hub"];
 
 export const DOCK_DEFAULT: IconId[] = ["settings", "theme", "resources", "characters"];
 
@@ -88,17 +80,9 @@ export const ICONS: Record<IconId, IconMeta> = {
     placeholder: false
   },
   checkphone: { id: "checkphone", label: "查手机", tone: "var(--c-icon-slate)", placeholder: false },
-  dwelling: {
-    id: "dwelling",
-    label: "栖所",
-    tone: "var(--c-icon-rose)",
-    placeholder: false
-  },
+  vnmode: { id: "vnmode", label: "漫卷", tone: "var(--c-icon-rose)", placeholder: false },
   shopping: { id: "shopping", label: "\u8D2D\u7269", tone: "var(--c-icon-amber)", placeholder: false },
   calendar: { id: "calendar", label: "\u65E5\u5386", tone: "var(--c-icon-rose)", placeholder: true },
-  interview_magazine: { id: "interview_magazine", label: "在场", tone: "var(--c-icon-lilac)", placeholder: false },
-  vnmode: { id: "vnmode", label: "漫卷", tone: "var(--c-icon-rose)", placeholder: false },
-  mapmode: { id: "mapmode", label: "冒险", tone: "var(--c-icon-amber)", placeholder: false },
   vnplay: { id: "vnplay", label: "漫卷播放", tone: "var(--c-icon-rose)", placeholder: true },
   vnchapters: { id: "vnchapters", label: "章节", tone: "var(--c-icon-rose)", placeholder: true },
   moments: { id: "moments", label: "\u670B\u53CB\u5708", tone: "var(--c-icon-lilac)", placeholder: false },
@@ -113,8 +97,5 @@ export const ICONS: Record<IconId, IconMeta> = {
     placeholder: false,
     path: "/characters"
   },
-  qa: { id: "qa", label: "工坊", tone: "var(--c-icon-qa, #4a505c99)", placeholder: false },
   resource_hub: { id: "resource_hub", label: "资源集市", tone: "var(--c-icon-amber)", placeholder: false },
-  mixology: { id: "mixology", label: "独家特调", tone: "var(--c-icon-violet)", placeholder: false },
-  findmy: { id: "findmy", label: "查找", tone: "var(--c-icon-green)", placeholder: false },
 };

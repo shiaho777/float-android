@@ -14,14 +14,12 @@ import { estimateTokens } from "./token-counter";
 import { loadStoryProjectionEntries } from "./story-storage";
 import { buildTwoLevelMomentThreads } from "./moments-comment-threading";
 import { loadVnProjectionEntries } from "./vn-storage";
-import { loadMapProjectionEntries, loadMapSharedProjectionEntries } from "./map-storage";
 import { loadGameProjectionEntries } from "./game-storage";
 import { loadDiaryEntries } from "./diary-entry-storage";
 import type { DiaryEntry, DiaryEntryBlock } from "./diary-entry-types";
 import { loadXiaohongshuProjectionEntries } from "./xiaohongshu-memory";
 import { formatXiaohongshuShareForPrompt } from "./chat-share";
 import { loadBlackMarketTheaterProjectionEntries } from "./black-market-storage";
-import { loadInterviewMagazineProjectionEntries } from "./interview-magazine-memory";
 import { loadCoCreateProjectionEntries } from "./cocreate-memory";
 import { stripStateAndInnerForPrompt } from "./prompt-sanitizer";
 import { renderUserNameMacro } from "./user-macro";
@@ -56,8 +54,8 @@ function formatPhotoDirectiveForPrompt(msg: ChatMessage): string {
 
 export type NativeTimelineEntry = {
     id: string;
-    sourceApp: "chat" | "moments" | "story" | "vn" | "map" | "game" | "diary" | "xiaohongshu" | "interview_magazine" | "cocreate" | "checkphone" | "custom_app";
-    sourceDetail?: "direct" | "group" | "system" | "story" | "chat_offline" | "game" | "diary_entry" | "notewall" | "xiaohongshu" | "black_market_theater" | "interview_issue" | "interview_shared_issue" | "cocreate_project" | "checkphone" | "custom_app_event"; // chat sub-type: 1:1 vs group chat vs system note
+    sourceApp: "chat" | "moments" | "story" | "vn" | "game" | "diary" | "xiaohongshu" | "cocreate" | "checkphone" | "custom_app";
+    sourceDetail?: "direct" | "group" | "system" | "story" | "chat_offline" | "game" | "diary_entry" | "notewall" | "xiaohongshu" | "black_market_theater" | "cocreate_project" | "checkphone" | "custom_app_event"; // chat sub-type: 1:1 vs group chat vs system note
     authorType?: "user" | "character" | "npc"; // who authored this entry
     postAuthorType?: "user" | "character"; // for moments: who owns the parent post
     sessionId?: string;
@@ -685,45 +683,6 @@ export function loadNativeTimeline(
         });
     }
 
-    // ── Map adventure projections ──
-    const mapEntries = loadMapProjectionEntries(characterId, {
-        afterTimestamp: options?.afterTimestamp,
-    });
-    for (const mapEntry of mapEntries) {
-        entries.push({
-            id: mapEntry.id,
-            sourceApp: "map",
-            timestamp: mapEntry.timestamp,
-            content: formatStoredPromptEventContent(renderUserNameMacro(mapEntry.content, userName), {
-                label: "跑团游戏",
-                timestamp: mapEntry.timestamp,
-                timeAware,
-                timestampOptions,
-            }),
-        });
-    }
-
-    // Multi-character adventure worlds are shared context, but still part of the
-    // same recent timeline and should not ride a separate shared-memory channel.
-    const sharedMapEntries = loadMapSharedProjectionEntries([characterId], {
-        afterTimestamp: options?.afterTimestamp,
-    });
-    for (const mapEntry of sharedMapEntries) {
-        const mapContent = personalizeShared(renderUserNameMacro(mapEntry.content, userName));
-        if (!mapContent) continue;
-        entries.push({
-            id: mapEntry.id,
-            sourceApp: "map",
-            timestamp: mapEntry.timestamp,
-            content: formatStoredPromptEventContent(mapContent, {
-                label: "跑团游戏",
-                timestamp: mapEntry.timestamp,
-                timeAware,
-                timestampOptions,
-            }),
-        });
-    }
-
     // ── Game hall projections ──
     const gameEntries = loadGameProjectionEntries(characterId, {
         afterTimestamp: options?.afterTimestamp,
@@ -796,29 +755,6 @@ export function loadNativeTimeline(
         });
     }
 
-    // ── Interview magazine projections ──
-    const interviewEntries = loadInterviewMagazineProjectionEntries(characterId, {
-        afterTimestamp: options?.afterTimestamp,
-    });
-    for (const interviewEntry of interviewEntries) {
-        const interviewSource = renderUserNameMacro(interviewEntry.content, userName);
-        const interviewContent = interviewEntry.shared ? personalizeShared(interviewSource) : interviewSource;
-        if (!interviewContent) continue;
-        entries.push({
-            id: interviewEntry.id,
-            sourceApp: "interview_magazine",
-            sourceDetail: interviewEntry.shared ? "interview_shared_issue" : "interview_issue",
-            authorType: "character",
-            timestamp: interviewEntry.timestamp,
-            content: formatStoredPromptEventContent(interviewContent, {
-                label: "访谈",
-                timestamp: interviewEntry.timestamp,
-                timeAware,
-                timestampOptions,
-            }),
-        });
-    }
-
     // ── Co-create projections ──
     const cocreateEntries = loadCoCreateProjectionEntries(characterId, {
         afterTimestamp: options?.afterTimestamp,
@@ -870,7 +806,7 @@ export function loadNativeTimeline(
 }
 
 // Fixed order — lower = further from LLM output (appears higher in prompt)
-const FEATURE_ORDER: Record<string, number> = { map: 0, game: 0.5, moments: 1, xiaohongshu: 1.5, checkphone: 1.7, story: 2, vn: 2, theater: 2.2, interview: 2.35, cocreate: 2.4, diary_entry: 2.45, notewall: 2.5, custom_app: 2.6, group_chat: 3, chat: 4 };
+const FEATURE_ORDER: Record<string, number> = { game: 0.5, moments: 1, xiaohongshu: 1.5, checkphone: 1.7, story: 2, vn: 2, theater: 2.2, cocreate: 2.4, diary_entry: 2.45, notewall: 2.5, custom_app: 2.6, group_chat: 3, chat: 4 };
 // Map appId → XML tag name for the "current feature" wrapper
 const FEATURE_TAG: Record<string, string> = {
     chat: "recent_chat",
@@ -878,12 +814,10 @@ const FEATURE_TAG: Record<string, string> = {
     moments: "recent_moments",
     story: "recent_events",
     vn: "recent_events",
-    adventure: "recent_game",
     game: "recent_game",
     diary: "recent_notewall",
     xiaohongshu: "recent_xiaohongshu",
     checkphone: "recent_checkphone",
-    interview_magazine: "recent_interview",
     cocreate: "recent_cocreate",
 };
 
@@ -981,7 +915,6 @@ export function filterTimelineByAllowedSources(
         }
         if (source === "story") return rules.story !== false;
         if (source === "vn") return rules.vn !== false;
-        if (source === "map") return rules.adventure !== false;
         return (rules as Record<string, boolean | undefined>)[source] !== false;
     });
 }
@@ -1036,7 +969,7 @@ export function prepareShortTermContext(
     const currentTag = getFeatureTag(appId);
     const history = options?.history ?? [];
     const characterName = loadCharacters().find(c => c.id === characterId)?.name ?? "角色";
-    const wrapsCurrentHistory = appId === "chat" || appId === "group_chat" || appId === "story" || appId === "vn" || appId === "adventure";
+    const wrapsCurrentHistory = appId === "chat" || appId === "group_chat" || appId === "story" || appId === "vn";
     const skipDirectChatEntries = appId === "chat" && !options?.includeDirectChatEntries;
 
     // ── Collect non-history entries per block ──
@@ -1071,13 +1004,7 @@ export function prepareShortTermContext(
         }
     }
 
-    // Map adventure projections — skip in adventure mode (already has full journal/stream context)
-    if (appId !== "adventure") {
-        const mapEventEntries = timeline.filter(e => e.sourceApp === "map");
-        if (mapEventEntries.length > 0) {
-            raw.push({ tag: "recent_game", order: FEATURE_ORDER.map, entries: mapEventEntries });
-        }
-    }
+
 
     const gameEventEntries = timeline.filter(e => e.sourceApp === "game");
     if (gameEventEntries.length > 0) {
@@ -1102,11 +1029,6 @@ export function prepareShortTermContext(
     const checkPhoneEntries = timeline.filter(e => e.sourceApp === "checkphone");
     if (checkPhoneEntries.length > 0) {
         raw.push({ tag: "recent_checkphone", order: FEATURE_ORDER.checkphone, entries: checkPhoneEntries });
-    }
-
-    const interviewEntries = timeline.filter(e => e.sourceApp === "interview_magazine");
-    if (interviewEntries.length > 0) {
-        raw.push({ tag: "recent_interview", order: FEATURE_ORDER.interview, entries: interviewEntries });
     }
 
     const cocreateEntries = timeline.filter(e => e.sourceApp === "cocreate");
@@ -1332,11 +1254,6 @@ export function prepareGroupShortTermContext(
         raw.push({ tag: "recent_events", order: FEATURE_ORDER.vn, entries: vnEntries });
     }
 
-    const mapEntries = timeline.filter(e => e.sourceApp === "map");
-    if (mapEntries.length > 0) {
-        raw.push({ tag: "recent_game", order: FEATURE_ORDER.map, entries: mapEntries });
-    }
-
     const gameEntries = timeline.filter(e => e.sourceApp === "game");
     if (gameEntries.length > 0) {
         raw.push({ tag: "recent_game", order: FEATURE_ORDER.game, entries: gameEntries });
@@ -1360,11 +1277,6 @@ export function prepareGroupShortTermContext(
     const checkPhoneEntries = timeline.filter(e => e.sourceApp === "checkphone");
     if (checkPhoneEntries.length > 0) {
         raw.push({ tag: "recent_checkphone", order: FEATURE_ORDER.checkphone, entries: checkPhoneEntries });
-    }
-
-    const interviewEntries = timeline.filter(e => e.sourceApp === "interview_magazine");
-    if (interviewEntries.length > 0) {
-        raw.push({ tag: "recent_interview", order: FEATURE_ORDER.interview, entries: interviewEntries });
     }
 
     const cocreateEntries = timeline.filter(e => e.sourceApp === "cocreate");
@@ -1457,11 +1369,9 @@ export function prepareGroupShortTermContext(
                 sourceApp: entry.sourceApp,
                 sourceTag: entry.sourceDetail === "group" ? "recent_group_chat" : (
                     entry.sourceApp === "moments" ? "recent_moments" :
-                        entry.sourceApp === "map" ? "recent_game" :
                             entry.sourceApp === "game" ? "recent_game" :
                                 entry.sourceApp === "xiaohongshu" ? "recent_xiaohongshu" :
                                     entry.sourceApp === "checkphone" ? "recent_checkphone" :
-                                        entry.sourceApp === "interview_magazine" ? "recent_interview" :
                                                 entry.sourceApp === "cocreate" ? "recent_cocreate" :
                                                     entry.sourceApp === "custom_app" ? "recent_custom_app" :
                                                         entry.sourceApp === "story" && entry.sourceDetail === "black_market_theater" ? "recent_theater" :

@@ -98,8 +98,6 @@ function WidgetContent({
       return <PhotoWidget config={config} widgetId={widgetId} onConfigChange={onConfigChange} preview={preview} />;
     case "loveNote":
       return <LoveNoteWidget config={config} widgetId={widgetId} onConfigChange={onConfigChange} />;
-    case "interviewMagazine":
-      return <InterviewMagazineWidget config={config} widgetId={widgetId} onConfigChange={onConfigChange} preview={preview} />;
     case "kaomoji":
       return <KaomojiWidget config={config} widgetId={widgetId} onConfigChange={onConfigChange} />;
     case "mascot":
@@ -1313,80 +1311,6 @@ function LoveNoteWidget({
   );
 }
 
-/* ══════════════════════════════════════════
-   Interview Magazine — 在场摘录 (2x4)
-   ══════════════════════════════════════════ */
-const INTERVIEW_MAGAZINE_LINES = [
-  { title: "夜谈", meta: "ON RECORD" },
-  { title: "侧写", meta: "PROFILE" },
-  { title: "问答", meta: "Q & A" },
-  { title: "成刊", meta: "IN PRESS" },
-  { title: "在场", meta: "PRESENCE" },
-];
-
-const INTERVIEW_MAGAZINE_QUOTES = [
-  "每个人都值得被认真采访一次",
-  "把沉默留给版心，把答案交给夜晚",
-  "问题抵达之前，人物已经在场",
-  "一句回答，也可以成为封面",
-  "所有细节都等着被照亮",
-];
-
-function InterviewMagazineWidget({
-  config,
-  widgetId,
-  onConfigChange,
-  preview,
-}: {
-  config?: Record<string, unknown>;
-  widgetId: string;
-  onConfigChange?: (widgetId: string, config: Record<string, unknown>) => void;
-  preview?: boolean;
-}) {
-  const [flipped, setFlipped] = useState(false);
-  const [lineIdx] = useState(() => Math.floor(Math.random() * INTERVIEW_MAGAZINE_LINES.length));
-  const line = INTERVIEW_MAGAZINE_LINES[lineIdx];
-  const quote = INTERVIEW_MAGAZINE_QUOTES[lineIdx];
-  const now = new Date();
-  const month = now.getMonth() + 1;
-  const day = now.getDate();
-  const imageDataUrl = typeof config?.imageDataUrl === "string" ? config.imageDataUrl : undefined;
-  const { triggerUpload, input } = useImageUpload(widgetId, "imageDataUrl", onConfigChange);
-  const displayImageUrl = imageDataUrl ?? DEFAULT_WHITE_IMAGE;
-
-  return (
-    <div className="wg-interview-magazine">
-      {input}
-      <div className="wg-interview-magazine-photo" onClick={preview ? undefined : (e) => { e.stopPropagation(); triggerUpload(); }} role={preview ? undefined : "button"} tabIndex={preview ? undefined : 0}>
-        <img src={displayImageUrl} alt="" className="wg-interview-magazine-photo-img" />
-        {!imageDataUrl && <span className="wg-interview-magazine-photo-hint">点击换图</span>}
-      </div>
-      <div className="wg-interview-magazine-right" onClick={() => setFlipped((f) => !f)} role="button" tabIndex={0}>
-        <div className={`wg-interview-magazine-card${flipped ? " wg-interview-magazine-flipped" : ""}`}>
-          <div className="wg-interview-magazine-front">
-            <span className="wg-interview-magazine-front-date">{month}.{day}</span>
-            <span className="wg-interview-magazine-front-title">在场</span>
-            <span className="wg-interview-magazine-front-eng">presence</span>
-            <span className="wg-interview-magazine-front-hint">- 轻触翻页 -</span>
-          </div>
-          <div className="wg-interview-magazine-back">
-            <span className="wg-interview-magazine-level">{line.title}</span>
-            <div className="wg-interview-magazine-divider" />
-            <div className="wg-interview-magazine-details">
-              <span>{line.meta}</span>
-              <span>ISSUE NOTES</span>
-            </div>
-            <span className="wg-interview-magazine-saying">“{quote}”</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════
-   11. Kaomoji Status Bar — 颜文字状态栏 (1x4)
-   ══════════════════════════════════════════ */
 const KAOMOJI_SETS = [
   "Ω · ♡\uFE0E · ᶘ ᵒᴥᵒᶅ · ˖ ✧",
   "♪ · ₍ᐢ..ᐢ₎ · ☁\uFE0E · ◌",

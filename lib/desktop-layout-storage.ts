@@ -54,7 +54,6 @@ function getInstalledCustomIconIds(): Set<string> {
 
 function migrateLegacyDesktopIconId(id: string, customIconIds = getInstalledCustomIconIds()): DesktopIconId | null {
   if (id === "forum") return "cocreate";
-  if (id === "fortune") return "interview_magazine";
   if (isCustomAppIconId(id) && customIconIds.has(id)) return id;
   return id in ICONS ? id as IconId : null;
 }

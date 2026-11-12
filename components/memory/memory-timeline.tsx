@@ -80,7 +80,7 @@ type ParsedProjection = {
     type: "projection";
     id: string;
     timestamp: string;
-    source: "story" | "vn" | "map" | "game" | "diary" | "xiaohongshu" | "interview_magazine" | "cocreate" | "checkphone" | "custom_app" | "chat_offline";
+    source: "story" | "vn" | "game" | "diary" | "xiaohongshu" | "cocreate" | "checkphone" | "custom_app" | "chat_offline";
     label: string;
     message: string;
 };
@@ -188,9 +188,9 @@ function parseEntry(evt: NativeTimelineEntry, userName: string): ParsedEntry | n
         };
     }
 
-    if (evt.sourceApp === "story" || evt.sourceApp === "vn" || evt.sourceApp === "map" || evt.sourceApp === "game" || evt.sourceApp === "xiaohongshu" || evt.sourceApp === "checkphone" || evt.sourceApp === "interview_magazine" || evt.sourceApp === "cocreate" || (evt.sourceApp === "diary" && (evt.sourceDetail === "diary_entry" || evt.sourceDetail === "notewall"))) {
-        const source = evt.sourceApp as "story" | "vn" | "map" | "game" | "diary" | "xiaohongshu" | "interview_magazine" | "cocreate" | "checkphone";
-        const label = source === "story" ? "剧情" : source === "vn" ? "漫卷" : source === "map" ? "冒险" : source === "game" ? "小游戏" : source === "xiaohongshu" ? "小红书" : source === "checkphone" ? "查手机" : source === "interview_magazine" ? "访谈" : source === "cocreate" ? "共创" : evt.sourceDetail === "diary_entry" ? "日记" : "便签墙";
+    if (evt.sourceApp === "story" || evt.sourceApp === "vn" || evt.sourceApp === "game" || evt.sourceApp === "xiaohongshu" || evt.sourceApp === "checkphone" || evt.sourceApp === "cocreate" || (evt.sourceApp === "diary" && (evt.sourceDetail === "diary_entry" || evt.sourceDetail === "notewall"))) {
+        const source = evt.sourceApp as "story" | "vn" | "game" | "diary" | "xiaohongshu" | "cocreate" | "checkphone";
+        const label = source === "story" ? "剧情" : source === "vn" ? "漫卷" : source === "game" ? "小游戏" : source === "xiaohongshu" ? "小红书" : source === "checkphone" ? "查手机" : source === "cocreate" ? "共创" : evt.sourceDetail === "diary_entry" ? "日记" : "便签墙";
         const stripped = content.replace(/^\[(?:事件|剧情|漫卷|梦境|跑团游戏|小游戏|日记|便签墙|小红书|查手机|访谈|共创)(?: [^\]]+)?\]\s*/, "");
         return {
             type: "projection",
